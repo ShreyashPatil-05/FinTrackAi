@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ goal.name }} — FinTrack{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <a href="{% url 'savings_goals' %}" class="sgd-back-btn mb-4 d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left"></i> All Goals
+  </a>
+
+  <div class="sgd-layout">
+
+    <!-- LEFT -->
+    <div class="sgd-left">
+      <div class="sgd-info-card">
+
+        <div class="sgd-hero">
+          <div class="sgd-hero-icon"><i class="bi bi-{{ goal.icon }}"></i></div>
+          <div>
+            <h3 class="sgd-name">{{ goal.name }}</h3>
+            {% if goal.target_date %}
+            <p class="sgd-date"><i class="bi bi-flag-fill me-1"></i>Target by {{ goal.target_date|date:"M d, Y" }}</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="sgd-milestones">
+          <span class="sgd-milestone {% if goal.progress_pct >= 1 %}sgd-ms--active{% endif %}">🚀 Started</span>
+          <span class="sgd-milestone {% if goal.progress_pct >= 25 %}sgd-ms--quarter{% endif %}">✅ 25% Reached</span>
+          <span class="sgd-milestone {% if goal.progress_pct >= 50 %}sgd-ms--half{% endif %}">🏁 Halfway There</span>
+          <span class="sgd-milestone {% if goal.progress_pct >= 100 %}sgd-ms--done{% endif %}">🏆 Goal Met</span>
+        </div>
+
+        <div class="sgd-progress-block">
+          <div class="sgd-pct-row">
+            <span class="sgd-big-pct">{{ goal.progress_pct }}%</span>
+            <div class="sgd-target-info">
+              <span class="sgd-target-label">TARGET AMOUNT</span>
+              <span class="sgd-target-val">₹{{ goal.target|floatformat:2 }}</span>
+            </div>
+          </div>
+          <div class="sgd-bar">
+            <div class="sgd-bar-fill {% if goal.progress_pct >= 100 %}sgd-bar--done{% else %}sgd-bar--active{% endif %}"
+                 data-pct="{{ goal.progress_pct }}"></div>
+          </div>
+          <p class="sgd-saved-line">Currently Saved: <strong class="sgd-saved-val">₹{{ goal.saved|floatformat:2 }}</strong></p>
+          {% if goal.remaining > 0 %}
+          <p class="sgd-remaining">Just ₹{{ goal.remaining|floatformat:0 }} left to go!</p>
+          {% else %}
+          <p class="sgd-remaining sgd-remaining--done">🎉 You've reached your goal!</p>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="sgd-right">
+
+      <!-- Deposit Card — indigo theme -->
+      <div class="sgd-deposit-card">
+        {% if goal.remaining > 0 %}
+        <div class="sgd-deposit-header">
+          <div class="sgd-deposit-icon"><i class="bi bi-wallet2"></i></div>
+          <div>
+            <h5 class="sgd-deposit-title">Deposit Funds</h5>
+            <p class="sgd-deposit-sub">Add money to <strong>{{ goal.name }}</strong></p>
+          </div>
+        </div>
+        <form method="post" action="{% url 'savings_goal_add_funds' goal.pk %}">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="sgd-label">Amount</label>
+            <div class="sgd-input-group">
+              <span class="sgd-input-prefix">₹</span>
+              <input type="number" name="amount" class="sgd-input" min="1" step="0.01" max="{{ goal.remaining|floatformat:2 }}" placeholder="Enter amount" required>
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="sgd-label">Date</label>
+            <input type="date" name="date" class="sgd-input sgd-input--full" id="depositDate" required>
+          </div>
+          <button type="submit" class="btn sgd-btn-deposit w-100">
+            <i class="bi bi-plus-circle-fill me-2"></i>Add to Savings
+          </button>
+        </form>
+        {% else %}
+        <div class="sgd-history-empty">
+          <i class="bi bi-trophy-fill" style="color:#f59e0b;opacity:1;"></i>
+          <p style="font-weight:600;color:var(--text);">Goal Completed!</p>
+          <p style="font-size:0.8rem;">You've reached your target of ₹{{ goal.target|floatformat:0 }}.</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- History Card -->
+      <div class="sgd-history-card">
+        <h5 class="sgd-history-title"><i class="bi bi-clock-history me-2"></i>Contribution History</h5>
+        {% if contributions %}
+        <div class="sgd-timeline">
+          {% for c in contributions %}
+          <div class="sgd-timeline-item">
+            <div class="sgd-timeline-dot"></div>
+            <div class="sgd-timeline-content">
+              <span class="sgd-contrib-amount">+₹{{ c.amount|floatformat:2 }}</span>
+              <span class="sgd-contrib-date">{{ c.date|date:"M d, Y" }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% if total_contributions > 3 %}
+        <p class="sgd-history-more">+{{ total_contributions|add:"-3" }} more contribution{{ total_contributions|add:"-3"|pluralize }}</p>
+        {% endif %}
+        {% else %}
+        <div class="sgd-history-empty">
+          <i class="bi bi-inbox"></i>
+          <p>No contributions yet</p>
+        </div>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.sgd-bar-fill[data-pct]').forEach(el => {
+    el.style.width = Math.min(parseFloat(el.dataset.pct), 100) + '%';
+  });
+  const d = document.getElementById('depositDate');
+  if (d) d.valueAsDate = new Date();
+</script>
+{% endblock %}

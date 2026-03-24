@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Savings Goals — FinTrack{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+      <h4 class="fw-bold mb-0">Savings Goals</h4>
+      <p class="text-muted small mb-0">Track your financial milestones</p>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <div class="sg-total-card">
+        <span class="sg-total-label">Total Saved</span>
+        <span class="sg-total-value">{{ total_saved_fmt }}</span>
+      </div>
+      <button class="btn sg-btn-add" data-bs-toggle="modal" data-bs-target="#addGoalModal">
+        <i class="bi bi-plus-lg me-1"></i> New Goal
+      </button>
+    </div>
+  </div>
+
+  <!-- Info Banner -->
+  <div class="sg-info-banner mb-4">
+    <i class="bi bi-info-circle-fill me-2"></i>
+    Funds added to a goal are logged as a <strong>Savings</strong> expense so your dashboard balance stays accurate.
+  </div>
+
+  {% if goals %}
+  <div class="sg-grid">
+    {% for goal in goals %}
+    {% with pct=goal.progress_pct %}
+    <div class="sg-card {% if pct >= 100 %}sg-card--done{% endif %}">
+
+      <!-- Top: icon + name + actions -->
+      <div class="sg-card-top">
+        <div class="sg-card-icon-wrap">
+          <i class="bi bi-{{ goal.icon }}"></i>
+        </div>
+        <div class="sg-card-title-block">
+          <h6 class="sg-goal-name">{{ goal.name }}</h6>
+          {% if goal.target_date %}
+          <p class="sg-goal-date"><i class="bi bi-calendar3 me-1"></i>Target: {{ goal.target_date|date:"M d, Y" }}</p>
+          {% else %}
+          <p class="sg-goal-date sg-goal-date--none"><i class="bi bi-calendar3 me-1"></i>No target date</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Progress section -->
+      <div class="sg-card-body">
+        <div class="sg-progress-header">
+          <div>
+            <div class="sg-prog-label">PROGRESS</div>
+            <div class="sg-prog-pct">{{ pct }}%</div>
+          </div>
+          <div class="text-end">
+            <div class="sg-prog-label">SAVED</div>
+            <div class="sg-prog-saved">₹{{ goal.saved|floatformat:0 }} <span class="sg-prog-target">/ ₹{{ goal.target|floatformat:0 }}</span></div>
+          </div>
+        </div>
+
+        <div class="sg-progress-track">
+          {% if pct >= 100 %}<div class="sg-progress-fill sg-fill--done" style="width:100%;"></div>
+          {% elif pct == 0 %}<div class="sg-progress-fill sg-fill--zero"></div>
+          {% else %}<div class="sg-progress-fill sg-fill--active" data-pct="{{ pct }}"></div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Footer: Add Funds + edit/delete -->
+      <div class="sg-card-footer">
+        {% if pct < 100 %}
+        <a href="{% url 'savings_goal_detail' goal.pk %}" class="sg-btn-funds">
+          <i class="bi bi-plus-circle-fill me-1"></i> Add Funds
+        </a>
+        {% else %}
+        <a href="{% url 'savings_goal_detail' goal.pk %}" class="sg-btn-view">
+          <i class="bi bi-trophy-fill me-1"></i> Completed
+        </a>
+        {% endif %}
+        <div class="sg-footer-actions">
+          <button class="sg-edit-btn"
+            data-bs-toggle="modal" data-bs-target="#editGoalModal"
+            data-pk="{{ goal.pk }}" data-name="{{ goal.name }}"
+            data-target="{{ goal.target }}" data-date="{{ goal.target_date|default:'' }}"
+            data-icon="{{ goal.icon }}" title="Edit">
+            <i class="bi bi-pencil"></i>
+          </button>
+          <button class="sg-delete-btn"
+            data-bs-toggle="modal" data-bs-target="#deleteGoalModal"
+            data-pk="{{ goal.pk }}" data-name="{{ goal.name }}" title="Delete">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+    {% endwith %}
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="sg-empty">
+    <div class="sg-empty-icon-wrap"><i class="bi bi-piggy-bank"></i></div>
+    <h5 class="mt-3 fw-bold">No savings goals yet</h5>
+    <p class="text-muted">Create your first goal to start tracking your savings.</p>
+    <button class="btn sg-btn-add mt-2" data-bs-toggle="modal" data-bs-target="#addGoalModal">
+      <i class="bi bi-plus-lg me-1"></i> Create Goal
+    </button>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Add Goal Modal -->
+<div class="modal fade" id="addGoalModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content sg-modal">
+      <div class="modal-header sg-modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-piggy-bank me-2 text-indigo"></i>New Savings Goal</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{% url 'savings_goal_add' %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Goal Name</label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Emergency Fund" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Target Amount (₹)</label>
+            <input type="number" name="target" class="form-control" min="1" step="0.01" placeholder="50000" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Target Date <span class="text-muted fw-normal">(optional)</span></label>
+            <input type="date" name="target_date" class="form-control">
+          </div>
+          <div class="mb-1">
+            <label class="form-label fw-semibold">Icon</label>
+            <div class="sg-icon-picker">
+              {% for val, label in icon_choices %}
+              <input type="radio" name="icon" id="add_icon_{{ val }}" value="{{ val }}" {% if val == 'piggy-bank' %}checked{% endif %} class="sg-icon-radio">
+              <label for="add_icon_{{ val }}" class="sg-icon-option" title="{{ label }}"><i class="bi bi-{{ val }}"></i></label>
+              {% endfor %}
+            </div>
+            <div class="sg-custom-icon-row mt-2">
+              <div class="sg-custom-icon-preview" id="addCustomPreview"><i class="bi bi-piggy-bank"></i></div>
+              <input type="text" id="addCustomIconInput" class="form-control form-control-sm"
+                placeholder="Custom icon name e.g. rocket, star, gift…">
+            </div>
+            <p class="text-muted" style="font-size:0.72rem;margin-top:4px;">
+              Any <a href="https://icons.getbootstrap.com/" target="_blank">Bootstrap Icon</a> name works.
+            </p>
+          </div>
+        </div>
+        <div class="modal-footer sg-modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn sg-btn-add">Create Goal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Goal Modal -->
+<div class="modal fade" id="editGoalModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content sg-modal">
+      <div class="modal-header sg-modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-pencil me-2 text-indigo"></i>Edit Goal</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="editGoalForm" action="">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Goal Name</label>
+            <input type="text" name="name" id="editGoalName" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Target Amount (₹)</label>
+            <input type="number" name="target" id="editGoalTarget" class="form-control" min="1" step="0.01" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Target Date <span class="text-muted fw-normal">(optional)</span></label>
+            <input type="date" name="target_date" id="editGoalDate" class="form-control">
+          </div>
+          <div class="mb-1">
+            <label class="form-label fw-semibold">Icon</label>
+            <div class="sg-icon-picker">
+              {% for val, label in icon_choices %}
+              <input type="radio" name="icon" id="edit_icon_{{ val }}" value="{{ val }}" class="sg-icon-radio">
+              <label for="edit_icon_{{ val }}" class="sg-icon-option" title="{{ label }}"><i class="bi bi-{{ val }}"></i></label>
+              {% endfor %}
+            </div>
+            <div class="sg-custom-icon-row mt-2">
+              <div class="sg-custom-icon-preview" id="editCustomPreview"><i class="bi bi-piggy-bank"></i></div>
+              <input type="text" id="editCustomIconInput" class="form-control form-control-sm"
+                placeholder="Custom icon name e.g. rocket, star, gift…">
+            </div>
+            <p class="text-muted" style="font-size:0.72rem;margin-top:4px;">
+              Any <a href="https://icons.getbootstrap.com/" target="_blank">Bootstrap Icon</a> name works.
+            </p>
+          </div>
+        </div>
+        <div class="modal-footer sg-modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn sg-btn-add">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteGoalModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content sg-modal">
+      <div class="modal-header">
+        <h5 class="modal-title text-danger fw-bold"><i class="bi bi-trash me-2"></i>Delete Goal</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="deleteGoalForm" action="">
+        {% csrf_token %}
+        <div class="modal-body">
+          <p class="mb-0">Delete <strong id="deleteGoalName"></strong>? This cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.sg-fill--active[data-pct]').forEach(el => {
+  el.style.width = el.dataset.pct + '%';
+});
+
+// Helper: wire up custom icon input for a modal
+function setupCustomIcon(inputId, previewId, radioName) {
+  const input   = document.getElementById(inputId);
+  const preview = document.getElementById(previewId);
+  if (!input || !preview) return;
+
+  input.addEventListener('input', function() {
+    const val = this.value.trim().toLowerCase().replace(/^bi-/, '');
+    if (!val) return;
+    // Update preview
+    preview.innerHTML = `<i class="bi bi-${val}"></i>`;
+    // Deselect all preset radios and set a hidden custom value
+    document.querySelectorAll(`input[name="${radioName}"]`).forEach(r => r.checked = false);
+    // Inject/update a hidden radio for the custom value
+    let hidden = document.getElementById(`${radioName}_custom_radio`);
+    if (!hidden) {
+      hidden = document.createElement('input');
+      hidden.type = 'radio'; hidden.name = radioName;
+      hidden.id = `${radioName}_custom_radio`;
+      hidden.className = 'sg-icon-radio';
+      input.closest('form').appendChild(hidden);
+    }
+    hidden.value = val;
+    hidden.checked = true;
+  });
+
+  // When a preset is clicked, clear the custom input
+  document.querySelectorAll(`input[name="${radioName}"].sg-icon-radio`).forEach(r => {
+    r.addEventListener('change', function() {
+      if (this.id !== `${radioName}_custom_radio`) {
+        input.value = '';
+        preview.innerHTML = `<i class="bi bi-${this.value}"></i>`;
+      }
+    });
+  });
+}
+
+setupCustomIcon('addCustomIconInput', 'addCustomPreview', 'icon');
+
+document.getElementById('editGoalModal').addEventListener('show.bs.modal', function(e) {
+  const b = e.relatedTarget;
+  document.getElementById('editGoalForm').action = `/savings-goals/${b.dataset.pk}/edit/`;
+  document.getElementById('editGoalName').value   = b.dataset.name;
+  document.getElementById('editGoalTarget').value = b.dataset.target;
+  document.getElementById('editGoalDate').value   = b.dataset.date;
+  const icon = b.dataset.icon;
+  // Try preset first
+  const preset = document.getElementById(`edit_icon_${icon}`);
+  if (preset) {
+    preset.checked = true;
+  } else {
+    // Custom icon — set input and preview
+    document.getElementById('editCustomIconInput').value = icon;
+    document.getElementById('editCustomPreview').innerHTML = `<i class="bi bi-${icon}"></i>`;
+    let hidden = document.getElementById('icon_custom_radio');
+    if (!hidden) {
+      hidden = document.createElement('input');
+      hidden.type = 'radio'; hidden.name = 'icon';
+      hidden.id = 'icon_custom_radio'; hidden.className = 'sg-icon-radio';
+      document.getElementById('editGoalForm').appendChild(hidden);
+    }
+    hidden.value = icon; hidden.checked = true;
+  }
+  setupCustomIcon('editCustomIconInput', 'editCustomPreview', 'icon');
+});
+
+document.getElementById('deleteGoalModal').addEventListener('show.bs.modal', function(e) {
+  const b = e.relatedTarget;
+  document.getElementById('deleteGoalForm').action = `/savings-goals/${b.dataset.pk}/delete/`;
+  document.getElementById('deleteGoalName').textContent = b.dataset.name;
+});
+</script>
+{% endblock %}

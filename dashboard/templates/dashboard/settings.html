@@ -1,0 +1,569 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="stg-layout">
+
+  <aside class="stg-sidebar">
+    <div class="stg-sidebar-header">
+      <div class="stg-sidebar-header-icon"><i class="bi bi-sliders"></i></div>
+      <div>
+        <div class="stg-sidebar-header-text">Settings</div>
+        <div class="stg-sidebar-header-sub">Manage your preferences</div>
+      </div>
+    </div>
+    <nav class="stg-nav">
+      <a href="{% url 'settings_income' %}" class="stg-nav-item {% if section == 'income' %}active{% endif %}">
+        <span class="stg-nav-icon"><i class="bi bi-cash-stack"></i></span>Income
+      </a>
+      <a href="{% url 'settings_categories' %}" class="stg-nav-item {% if section == 'categories' %}active{% endif %}">
+        <span class="stg-nav-icon"><i class="bi bi-tags"></i></span>Categories
+      </a>
+      <a href="{% url 'settings_budget' %}" class="stg-nav-item {% if section == 'budget' %}active{% endif %}">
+        <span class="stg-nav-icon"><i class="bi bi-wallet2"></i></span>Budget
+      </a>
+      <div class="stg-nav-divider"></div>
+      <a href="{% url 'settings_upload' %}" class="stg-nav-item {% if section == 'upload' %}active{% endif %}">
+        <span class="stg-nav-icon"><i class="bi bi-cloud-upload"></i></span>Upload Data
+      </a>
+    </nav>
+  </aside>
+
+  <div class="stg-main">
+
+    {% if section == 'income' %}
+    <div class="stg-panel">
+      <div class="stg-panel-header">
+        <div class="stg-panel-icon" style="background:#d1fae5;color:#059669;"><i class="bi bi-cash-stack"></i></div>
+        <div>
+          <div class="stg-panel-title">Income</div>
+          <div class="stg-panel-sub">Track all your income sources.</div>
+        </div>
+        <button class="inc-btn-add ms-auto" onclick="document.getElementById('addIncomeModal').style.display='flex'">
+          <i class="bi bi-plus-lg me-1"></i> Add Income
+        </button>
+      </div>
+
+      <form method="get" class="inc-filter-strip">
+        <div class="inc-filter-group">
+          <label class="inc-filter-label">Date From</label>
+          <input type="date" name="date_from" class="inc-filter-input" value="{{ date_from }}">
+        </div>
+        <div class="inc-filter-group">
+          <label class="inc-filter-label">Date To</label>
+          <input type="date" name="date_to" class="inc-filter-input" value="{{ date_to }}">
+        </div>
+        <div class="inc-filter-group">
+          <label class="inc-filter-label">Source</label>
+          <input type="text" name="source" class="inc-filter-input" placeholder="Search source..." value="{{ source_q }}">
+        </div>
+        <button type="submit" class="inc-btn-apply"><i class="bi bi-funnel me-1"></i> Apply</button>
+        <a href="{% url 'settings_income' %}" class="inc-btn-reset"><i class="bi bi-x-lg me-1"></i> Reset</a>
+      </form>
+
+      <div class="inc-summary-strip">
+        <div class="inc-summary-card">
+          <div class="inc-summary-label">Total Records</div>
+          <div class="inc-summary-value">{{ total_records }}</div>
+        </div>
+        <div class="inc-summary-card">
+          <div class="inc-summary-label">Total Amount</div>
+          <div class="inc-summary-value teal">&#8377;{{ total_amount|floatformat:2 }}</div>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="inc-table">
+          <thead>
+            <tr><th>Date</th><th>Source</th><th>Description</th><th>Amount</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {% for inc in incomes %}
+            <tr>
+              <td>{{ inc.date|date:"d M Y" }}</td>
+              <td><span class="inc-source-badge inc-src-{{ inc.source|lower }}">{{ inc.source }}</span></td>
+              <td class="text-muted" style="font-size:.88rem;">{{ inc.description|default:"—" }}</td>
+              <td class="inc-amount">&#8377;{{ inc.amount|floatformat:2 }}</td>
+              <td>
+                <button class="inc-action-btn edit inc-edit-btn"
+                  data-pk="{{ inc.pk }}"
+                  data-date="{{ inc.date|date:'Y-m-d' }}"
+                  data-source="{{ inc.source }}"
+                  data-description="{{ inc.description|escapejs }}"
+                  data-amount="{{ inc.amount }}"
+                  title="Edit"><i class="bi bi-pencil"></i></button>
+                <form method="post" action="{% url 'income_delete' inc.pk %}" style="display:inline;"
+                      onsubmit="return confirm('Delete this entry?')">
+                  {% csrf_token %}
+                  <button type="submit" class="inc-action-btn delete" title="Delete"><i class="bi bi-trash"></i></button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="inc-empty">No income entries yet. Click "Add Income" to get started.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Add Income Modal -->
+    <div class="inc-modal-overlay" id="addIncomeModal" style="display:none;">
+      <div class="inc-modal">
+        <div class="inc-modal-header">
+          <span><i class="bi bi-plus-circle me-2"></i>Add Income</span>
+          <button class="inc-modal-close" onclick="document.getElementById('addIncomeModal').style.display='none'">&times;</button>
+        </div>
+        <form method="post" action="{% url 'income_add' %}">
+          {% csrf_token %}
+          <div class="inc-modal-body">
+            <div class="stg-field">
+              <label class="stg-label">Date</label>
+              <input type="date" name="date" class="stg-input" required>
+            </div>
+            <div class="inc-modal-row">
+              <div class="stg-field">
+                <label class="stg-label">Source</label>
+                <select name="source" class="stg-input">
+                  {% for val, label in source_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="stg-field">
+                <label class="stg-label">Amount (&#8377;)</label>
+                <input type="number" name="amount" class="stg-input" min="0" step="0.01" placeholder="0.00" required>
+              </div>
+            </div>
+            <div class="stg-field">
+              <label class="stg-label">Description</label>
+              <input type="text" name="description" class="stg-input" placeholder="Optional note...">
+            </div>
+          </div>
+          <div class="inc-modal-footer">
+            <button type="button" class="stg-btn-cancel" onclick="document.getElementById('addIncomeModal').style.display='none'">Cancel</button>
+            <button type="submit" class="inc-btn-add"><i class="bi bi-check-lg me-1"></i> Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Edit Income Modal -->
+    <div class="inc-modal-overlay" id="editIncomeModal" style="display:none;">
+      <div class="inc-modal">
+        <div class="inc-modal-header">
+          <span><i class="bi bi-pencil me-2"></i>Edit Income</span>
+          <button class="inc-modal-close" onclick="document.getElementById('editIncomeModal').style.display='none'">&times;</button>
+        </div>
+        <form method="post" id="editIncomeForm" action="">
+          {% csrf_token %}
+          <div class="inc-modal-body">
+            <div class="stg-field">
+              <label class="stg-label">Date</label>
+              <input type="date" name="date" id="editDate" class="stg-input" required>
+            </div>
+            <div class="inc-modal-row">
+              <div class="stg-field">
+                <label class="stg-label">Source</label>
+                <select name="source" id="editSource" class="stg-input">
+                  {% for val, label in source_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="stg-field">
+                <label class="stg-label">Amount (&#8377;)</label>
+                <input type="number" name="amount" id="editAmount" class="stg-input" min="0" step="0.01" required>
+              </div>
+            </div>
+            <div class="stg-field">
+              <label class="stg-label">Description</label>
+              <input type="text" name="description" id="editDescription" class="stg-input">
+            </div>
+          </div>
+          <div class="inc-modal-footer">
+            <button type="button" class="stg-btn-cancel" onclick="document.getElementById('editIncomeModal').style.display='none'">Cancel</button>
+            <button type="submit" class="inc-btn-add"><i class="bi bi-check-lg me-1"></i> Update</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% elif section == 'categories' %}
+    <div class="stg-panel">
+      <div class="stg-panel-header">
+        <div class="stg-panel-icon" style="background:#ede9fe;color:#7c3aed;"><i class="bi bi-tags"></i></div>
+        <div>
+          <div class="stg-panel-title">Expense Categories</div>
+          <div class="stg-panel-sub">Manage default and custom categories for your expenses.</div>
+        </div>
+      </div>
+
+      {% if success %}<div class="stg-alert success"><i class="bi bi-check-circle-fill me-2"></i>Category added.</div>{% endif %}
+      {% if error %}<div class="stg-alert error"><i class="bi bi-exclamation-circle-fill me-2"></i>{{ error }}</div>{% endif %}
+
+      <form method="post" class="stg-form mb-4">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add">
+        <div class="stg-field">
+          <label class="stg-label"><i class="bi bi-plus-circle me-1"></i> Add Custom Category</label>
+          <div class="d-flex gap-2">
+            <input type="text" name="name" class="stg-input" placeholder="e.g. Fitness, Pets...">
+            <button type="submit" class="stg-btn-save" style="white-space:nowrap;">
+              <i class="bi bi-plus-lg me-1"></i> Add
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <div class="stg-cat-section-label">Default Categories</div>
+      <div class="stg-cat-grid mb-4">
+        {% for cat in default_categories %}
+        <div class="stg-cat-chip default"><i class="bi bi-tag me-1"></i> {{ cat }}</div>
+        {% endfor %}
+      </div>
+
+      {% if custom_categories %}
+      <div class="stg-cat-section-label">Your Custom Categories</div>
+      <div class="stg-cat-grid">
+        {% for cat in custom_categories %}
+        <div class="stg-cat-chip custom">
+          <span><i class="bi bi-tag-fill me-1"></i> {{ cat.name }}</span>
+          <form method="post" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="cat_id" value="{{ cat.id }}">
+            <button type="submit" class="stg-cat-del" title="Remove" onclick="return confirm('Remove this category?')">
+              <i class="bi bi-x"></i>
+            </button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-muted" style="font-size:0.85rem;">No custom categories yet.</p>
+      {% endif %}
+    </div>
+
+    {% elif section == 'budget' %}
+    <div class="stg-panel">
+      <div class="stg-panel-header">
+        <div class="stg-panel-icon" style="background:#fef3c7;color:#d97706;"><i class="bi bi-wallet2"></i></div>
+        <div>
+          <div class="stg-panel-title">Budget Limits</div>
+          <div class="stg-panel-sub">Set monthly spending limits per category.</div>
+        </div>
+        <!-- Month nav -->
+        <div class="bgt-month-nav ms-auto">
+          <a href="?month={{ prev_m }}&year={{ prev_y }}" class="bgt-nav-btn"><i class="bi bi-chevron-left"></i></a>
+          <span class="bgt-month-label">{{ view_month_name }} {{ view_year }}</span>
+          <a href="?month={{ next_m }}&year={{ next_y }}" class="bgt-nav-btn"><i class="bi bi-chevron-right"></i></a>
+        </div>
+        <!-- Copy from last month -->
+        <form method="post" action="{% url 'budget_copy_last_month' %}" class="ms-2">
+          {% csrf_token %}
+          <input type="hidden" name="month" value="{{ view_month }}">
+          <input type="hidden" name="year" value="{{ view_year }}">
+          <button type="submit" class="bgt-copy-btn" title="Copy limits from last month">
+            <i class="bi bi-copy me-1"></i> Copy Last Month
+          </button>
+        </form>
+      </div>
+
+      {% if messages %}
+        {% for msg in messages %}
+        <div class="stg-alert success"><i class="bi bi-check-circle-fill me-2"></i>{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="post" action="?month={{ view_month }}&year={{ view_year }}">
+        {% csrf_token %}
+
+        <!-- Total Budget Goal — auto-computed from category limits -->
+        <div class="bgt-total-card" id="bgtTotalCard"
+          data-spent="{{ total_spent }}">
+          <div class="bgt-total-left">
+            <div class="bgt-total-label">TOTAL BUDGET GOAL</div>
+            <div class="bgt-total-spent" id="bgtSpentFmt">{{ total_spent_fmt }}</div>
+            <div class="bgt-total-of" id="bgtGoalFmt">{% if total_goal_fmt %}/ {{ total_goal_fmt }}{% endif %}</div>
+          </div>
+          <div class="bgt-total-right" id="bgtTotalRight">
+            <div class="bgt-total-bar-wrap" id="bgtBarWrap" style="{% if not total_goal %}display:none{% endif %}">
+              <div class="bgt-bar-track">
+                <div class="bgt-bar-fill" id="bgtBarFill"
+                  style="width:{% if total_goal %}{% if total_pct > 100 %}100{% else %}{{ total_pct|floatformat:0 }}{% endif %}{% else %}0{% endif %}%;background:#f59e0b;"></div>
+              </div>
+              <div class="bgt-bar-meta">
+                <span class="bgt-pct-label" id="bgtPctLabel">{% if total_goal %}{{ total_pct }}% Used{% endif %}</span>
+                <span id="bgtStatusMsg"
+                  class="{% if total_status == 'danger' %}bgt-over-msg{% elif total_status == 'warning' %}bgt-warn-msg{% else %}bgt-ok-msg{% endif %}">
+                  {% if total_goal %}
+                    {% if total_status == 'danger' %}Over budget by &#8377;{{ total_over|floatformat:0 }}
+                    {% elif total_status == 'warning' %}Approaching limit
+                    {% else %}On track{% endif %}
+                  {% endif %}
+                </span>
+              </div>
+            </div>
+            <div class="bgt-no-goal" id="bgtNoGoal" style="{% if total_goal %}display:none{% endif %}">
+              Set category limits below to track overall spending
+            </div>
+          </div>
+        </div>
+
+        <!-- Per-category grid -->
+        <div class="budget-grid mt-4">
+          {% for row in budget_rows %}
+          <div class="budget-card {% if row.status == 'danger' %}bgt-danger{% elif row.status == 'warning' %}bgt-warning{% endif %}">
+            <div class="budget-card-top">
+              <div class="bgt-cat-icon bgt-icon-{{ row.category|lower }}">
+                {% if row.category == 'Food' %}<i class="bi bi-cup-hot-fill"></i>
+                {% elif row.category == 'Travel' %}<i class="bi bi-airplane-fill"></i>
+                {% elif row.category == 'Shopping' %}<i class="bi bi-bag-fill"></i>
+                {% elif row.category == 'Bills' %}<i class="bi bi-receipt"></i>
+                {% elif row.category == 'Transport' %}<i class="bi bi-car-front-fill"></i>
+                {% elif row.category == 'Entertainment' %}<i class="bi bi-controller"></i>
+                {% elif row.category == 'Health' %}<i class="bi bi-heart-pulse-fill"></i>
+                {% elif row.category == 'Education' %}<i class="bi bi-book-fill"></i>
+                {% elif row.category == 'Savings' %}<i class="bi bi-piggy-bank-fill"></i>
+                {% elif row.category == 'Subscription' %}<i class="bi bi-credit-card-fill"></i>
+                {% else %}<i class="bi bi-tag-fill"></i>{% endif %}
+              </div>
+              <span class="bgt-cat-name">{{ row.category }}</span>
+              {% if row.pct is not None %}
+              <span class="bgt-pct-badge bgt-badge-{{ row.status }}">{{ row.pct|floatformat:0 }}%</span>
+              {% endif %}
+            </div>
+            <div class="budget-spent-row">
+              <span class="budget-spent-label">Spent</span>
+              <span class="budget-spent-val">&#8377;{{ row.spent|floatformat:2 }}</span>
+            </div>
+            {% if row.limit %}
+            <div class="budget-bar-wrap">
+              <div class="budget-bar-track">
+                <div class="budget-bar-fill bgt-fill-{{ row.status }}"
+                  style="width:{% if row.pct > 100 %}100{% else %}{{ row.pct|floatformat:0 }}{% endif %}%;"></div>
+              </div>
+              <div class="budget-bar-labels">
+                <span class="text-muted" style="font-size:.78rem;">Limit: &#8377;{{ row.limit|floatformat:0 }}</span>
+                <span class="budget-remaining {% if row.remaining < 0 %}text-danger{% endif %}" style="font-size:.78rem;">
+                  {% if row.remaining >= 0 %}&#8377;{{ row.remaining|floatformat:0 }} left
+                  {% else %}+&#8377;{{ row.remaining|floatformat:0|slice:"1:" }}{% endif %}
+                </span>
+              </div>
+              {% if row.status == 'danger' %}
+              <div class="bgt-alert-msg danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>Limit reached — consider adjusting</div>
+              {% elif row.status == 'warning' %}
+              <div class="bgt-alert-msg warning"><i class="bi bi-exclamation-triangle me-1"></i>You're close to your limit</div>
+              {% endif %}
+            </div>
+            {% else %}
+            <div class="bgt-no-limit-row">
+              <i class="bi bi-info-circle me-1"></i> No limit set
+            </div>
+            {% endif %}
+            <div class="budget-input-wrap mt-2">
+              <span class="budget-currency">&#8377;</span>
+              <input type="number" name="limit_{{ row.category }}" class="budget-limit-input cat-limit-input"
+                placeholder="Set limit..." min="0" step="1"
+                value="{% if row.limit %}{{ row.limit|floatformat:0 }}{% endif %}">
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="mt-4">
+          <button type="submit" class="stg-btn-save"><i class="bi bi-check-lg me-1"></i> Save Budgets</button>
+        </div>
+      </form>
+    </div>
+
+    {% elif section == 'upload' %}
+    <div class="stg-panel">
+      <div class="stg-panel-header">
+        <div class="stg-panel-icon" style="background:#dcfce7;color:#16a34a;"><i class="bi bi-cloud-upload"></i></div>
+        <div>
+          <div class="stg-panel-title">Upload Expense Data</div>
+          <div class="stg-panel-sub">Import expenses from a CSV file in bulk.</div>
+        </div>
+      </div>
+
+      {% if success %}
+      <div class="stg-alert success">
+        <i class="bi bi-check-circle-fill me-2"></i> Imported {{ imported }} expense{{ imported|pluralize }} successfully.
+      </div>
+      {% endif %}
+      {% if error %}
+      <div class="stg-alert error"><i class="bi bi-exclamation-circle-fill me-2"></i>{{ error }}</div>
+      {% endif %}
+
+      <div class="stg-upload-guide">
+        <div class="stg-guide-title"><i class="bi bi-info-circle me-1"></i> Required CSV Format</div>
+        <div class="stg-guide-table-wrap">
+          <table class="stg-guide-table">
+            <thead><tr><th>date</th><th>title</th><th>category</th><th>amount</th></tr></thead>
+            <tbody><tr><td>2026-03-01</td><td>Coffee</td><td>Food</td><td>120</td></tr></tbody>
+          </table>
+        </div>
+        <p class="stg-hint mt-2">Date format: <code>YYYY-MM-DD</code>. Unknown categories default to "Other".</p>
+      </div>
+
+      <form method="post" enctype="multipart/form-data" class="stg-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="preview">
+        <div class="stg-field">
+          <label class="stg-label"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Select CSV File</label>
+          <div class="stg-file-drop" id="fileDrop">
+            <i class="bi bi-cloud-upload stg-file-icon"></i>
+            <p class="stg-file-text">Click to browse or drag &amp; drop</p>
+            <p class="stg-file-hint" id="fileNameDisplay">CSV files only</p>
+            <input type="file" name="csv_file" id="csvInput" accept=".csv" style="display:none;">
+          </div>
+        </div>
+        <button type="submit" class="stg-btn-save"><i class="bi bi-eye me-1"></i> Preview</button>
+      </form>
+
+      {% if preview %}
+      <div class="stg-preview mt-4">
+        <div class="stg-cat-section-label">Preview (first 5 rows)</div>
+        <div class="table-responsive">
+          <table class="stg-guide-table w-100">
+            <thead><tr><th>Title</th><th>Category</th><th>Amount</th><th>Date</th></tr></thead>
+            <tbody>
+              {% for row in preview %}
+              <tr>
+                <td>{{ row.title }}</td>
+                <td>{{ row.category }}</td>
+                <td>{{ row.amount }}</td>
+                <td>{{ row.date }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <form method="post" class="mt-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="import">
+          <button type="submit" class="stg-btn-save" style="background:linear-gradient(135deg,#16a34a,#15803d);">
+            <i class="bi bi-cloud-check me-1"></i> Confirm Import
+          </button>
+          <a href="{% url 'settings_upload' %}" class="stg-btn-cancel ms-2">Cancel</a>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<script>
+  // File drop zone
+  var fileDrop = document.getElementById('fileDrop');
+  var csvInput = document.getElementById('csvInput');
+  if (fileDrop && csvInput) {
+    fileDrop.addEventListener('click', function() { csvInput.click(); });
+    csvInput.addEventListener('change', function() {
+      document.getElementById('fileNameDisplay').textContent = this.files[0] ? this.files[0].name : 'CSV files only';
+    });
+    fileDrop.addEventListener('dragover', function(e) { e.preventDefault(); fileDrop.classList.add('drag-over'); });
+    fileDrop.addEventListener('dragleave', function() { fileDrop.classList.remove('drag-over'); });
+    fileDrop.addEventListener('drop', function(e) {
+      e.preventDefault();
+      fileDrop.classList.remove('drag-over');
+      if (e.dataTransfer.files.length) {
+        csvInput.files = e.dataTransfer.files;
+        document.getElementById('fileNameDisplay').textContent = e.dataTransfer.files[0].name;
+      }
+    });
+  }
+
+  // Edit modal — triggered via data attributes, no inline onclick
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.inc-edit-btn');
+    if (!btn) return;
+    var pk = btn.dataset.pk;
+    document.getElementById('editDate').value        = btn.dataset.date;
+    document.getElementById('editAmount').value      = btn.dataset.amount;
+    document.getElementById('editDescription').value = btn.dataset.description;
+    var sel = document.getElementById('editSource');
+    for (var i = 0; i < sel.options.length; i++) {
+      sel.options[i].selected = sel.options[i].value === btn.dataset.source;
+    }
+    document.getElementById('editIncomeForm').action = '/settings/income/' + pk + '/edit/';
+    document.getElementById('editIncomeModal').style.display = 'flex';
+  });
+
+  // Close modals on overlay click
+  document.querySelectorAll('.inc-modal-overlay').forEach(function(overlay) {
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) overlay.style.display = 'none';
+    });
+  });
+
+  // ── Budget: live total goal from category limit inputs ──
+  (function() {
+    var card = document.getElementById('bgtTotalCard');
+    if (!card) return;
+
+    var totalSpent = parseFloat(card.dataset.spent) || 0;
+
+    function fmtAmt(v) {
+      if (v >= 100000) return '₹' + (v / 100000).toFixed(1) + 'L';
+      if (v >= 1000)   return '₹' + (v / 1000).toFixed(1) + 'K';
+      return '₹' + Math.round(v);
+    }
+
+    function updateTotal() {
+      var inputs = document.querySelectorAll('.cat-limit-input');
+      var total = 0;
+      inputs.forEach(function(inp) {
+        var v = parseFloat(inp.value);
+        if (!isNaN(v) && v > 0) total += v;
+      });
+
+      var goalFmt  = document.getElementById('bgtGoalFmt');
+      var barWrap  = document.getElementById('bgtBarWrap');
+      var noGoal   = document.getElementById('bgtNoGoal');
+      var barFill  = document.getElementById('bgtBarFill');
+      var pctLabel = document.getElementById('bgtPctLabel');
+      var statusMsg= document.getElementById('bgtStatusMsg');
+
+      if (total > 0) {
+        goalFmt.textContent = '/ ' + fmtAmt(total);
+        barWrap.style.display = '';
+        noGoal.style.display  = 'none';
+
+        var pct = Math.round(totalSpent / total * 1000) / 10;
+        var barW = Math.min(pct, 100);
+        barFill.style.width = barW + '%';
+        pctLabel.textContent = pct + '% Used';
+
+        // colour + message
+        statusMsg.className = '';
+        if (pct >= 100) {
+          barFill.style.background = 'linear-gradient(90deg,#f87171,#ef4444)';
+          statusMsg.className = 'bgt-over-msg';
+          statusMsg.textContent = 'Over budget by ₹' + Math.round(totalSpent - total).toLocaleString('en-IN');
+        } else if (pct >= 80) {
+          barFill.style.background = 'linear-gradient(90deg,#fbbf24,#f59e0b)';
+          statusMsg.className = 'bgt-warn-msg';
+          statusMsg.textContent = 'Approaching limit';
+        } else {
+          barFill.style.background = 'linear-gradient(90deg,#34d399,#10b981)';
+          statusMsg.className = 'bgt-ok-msg';
+          statusMsg.textContent = 'On track';
+        }
+      } else {
+        goalFmt.textContent   = '';
+        barWrap.style.display = 'none';
+        noGoal.style.display  = '';
+        pctLabel.textContent  = '';
+        statusMsg.textContent = '';
+      }
+    }
+
+    // attach listeners
+    document.querySelectorAll('.cat-limit-input').forEach(function(inp) {
+      inp.addEventListener('input', updateTotal);
+    });
+
+    // run once on load
+    updateTotal();
+  })();
+</script>
+{% endblock %}

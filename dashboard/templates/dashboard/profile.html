@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+<div class="col-lg-7 col-md-9">
+
+    <!-- Header card — avatar + name -->
+    <div class="prof-hero mb-4">
+        <div class="prof-avatar-wrap">
+            {% if profile_obj.avatar %}
+                <img src="{{ profile_obj.avatar.url }}" alt="Avatar" class="prof-avatar-img">
+            {% else %}
+                <div class="prof-avatar">{{ request.user.username|first|upper }}</div>
+            {% endif %}
+            <!-- Upload trigger -->
+            <label class="prof-avatar-edit" for="avatarInput" title="Change photo">
+                <i class="bi bi-camera-fill"></i>
+            </label>
+        </div>
+        <div>
+            <div class="prof-display-name">
+                {% if request.user.first_name or request.user.last_name %}
+                    {{ request.user.first_name }} {{ request.user.last_name }}
+                {% else %}
+                    {{ request.user.username }}
+                {% endif %}
+            </div>
+            <div class="prof-display-sub">@{{ request.user.username }}</div>
+            <div class="prof-display-sub">
+                <i class="bi bi-calendar3 me-1"></i>
+                Joined {{ request.user.date_joined|date:"F Y" }}
+            </div>
+            {% if profile_obj.avatar %}
+            <form method="post" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="remove_avatar">
+                <button type="submit" class="prof-remove-avatar">
+                    <i class="bi bi-trash me-1"></i>Remove photo
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Hidden avatar upload form — submits on file select -->
+    <form method="post" enctype="multipart/form-data" id="avatarForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="avatar">
+        <input type="file" id="avatarInput" name="avatar" accept="image/*" style="display:none;">
+    </form>
+
+    <!-- Edit form card -->
+    <div class="prof-card">
+        <div class="prof-card-header">
+            <i class="bi bi-person-gear me-2" style="color:#4f8ef7;"></i>
+            Edit Profile
+        </div>
+
+        {% if success %}
+        <div class="prof-success">
+            <i class="bi bi-check-circle-fill me-2"></i> Saved successfully.
+        </div>
+        {% endif %}
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="profile">
+
+            <div class="prof-field-row">
+                <div class="prof-field">
+                    <label class="prof-label"><i class="bi bi-person me-1" style="color:#4f8ef7;"></i> First Name</label>
+                    <input type="text" name="first_name" class="prof-input" placeholder="John" value="{{ request.user.first_name }}">
+                </div>
+                <div class="prof-field">
+                    <label class="prof-label"><i class="bi bi-person me-1" style="color:#4f8ef7;"></i> Last Name</label>
+                    <input type="text" name="last_name" class="prof-input" placeholder="Doe" value="{{ request.user.last_name }}">
+                </div>
+            </div>
+
+            <div class="prof-field">
+                <label class="prof-label"><i class="bi bi-at me-1" style="color:#4f8ef7;"></i> Username</label>
+                <input type="text" name="username" class="prof-input" value="{{ request.user.username }}" required>
+            </div>
+
+            <div class="prof-field">
+                <label class="prof-label"><i class="bi bi-envelope me-1" style="color:#4f8ef7;"></i> Email</label>
+                <input type="email" name="email" class="prof-input" placeholder="you@example.com" value="{{ request.user.email }}">
+            </div>
+
+            <div class="prof-actions">
+                <button type="submit" class="prof-btn-save">
+                    <i class="bi bi-check-lg me-1"></i> Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Account info card -->
+    <div class="prof-card mt-3">
+        <div class="prof-card-header">
+            <i class="bi bi-info-circle me-2" style="color:#4f8ef7;"></i>
+            Account Info
+        </div>
+        <div class="prof-info-row">
+            <span class="prof-info-label">Member since</span>
+            <span class="prof-info-value">{{ request.user.date_joined|date:"d M Y" }}</span>
+        </div>
+        <div class="prof-info-row">
+            <span class="prof-info-label">Last login</span>
+            <span class="prof-info-value">{{ request.user.last_login|date:"d M Y, H:i" }}</span>
+        </div>
+        <div class="prof-info-row">
+            <span class="prof-info-label">Account status</span>
+            <span class="prof-info-value">
+                <span class="prof-status-badge">
+                    <span class="prof-status-dot"></span> Active
+                </span>
+            </span>
+        </div>
+    </div>
+
+    <!-- Data & Privacy card -->
+    <div class="prof-card mt-3">
+        <div class="prof-card-header">
+            <i class="bi bi-shield-lock me-2" style="color:#4f8ef7;"></i>
+            Data &amp; Privacy
+        </div>
+        <div class="prof-info-row">
+            <span class="prof-info-label">Your data</span>
+            <span class="prof-info-value" style="font-size:0.82rem;color:#64748b;">Expenses, income, and savings goals</span>
+        </div>
+        <div class="prof-actions" style="margin-top:12px;">
+            <a href="{% url 'export_data' %}" class="prof-btn-save" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+                <i class="bi bi-download"></i> Export my data
+            </a>
+        </div>
+    </div>
+
+</div>
+</div>
+
+<script>
+document.getElementById('avatarInput').addEventListener('change', function() {
+    if (this.files && this.files[0]) {
+        document.getElementById('avatarForm').submit();
+    }
+});
+</script>
+
+{% endblock %}

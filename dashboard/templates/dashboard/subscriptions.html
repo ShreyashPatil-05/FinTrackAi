@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="sub-page">
+
+  <!-- Header -->
+  <div class="sub-header">
+    <div>
+      <div class="sub-page-title"><i class="bi bi-repeat me-2"></i>Subscriptions</div>
+      <div class="sub-page-sub">Track your recurring payments in one place.</div>
+    </div>
+    <button class="sub-btn-add" onclick="document.getElementById('addSubModal').style.display='flex'">
+      <i class="bi bi-plus-lg me-1"></i> Add Subscription
+    </button>
+  </div>
+
+  <!-- Summary strip -->
+  <div class="sub-summary-strip">
+    <div class="sub-summary-card">
+      <div class="sub-summary-icon" style="background:#dbeafe;color:#2563eb;"><i class="bi bi-calendar-check"></i></div>
+      <div>
+        <div class="sub-summary-label">Active</div>
+        <div class="sub-summary-value">{{ active_count }}</div>
+      </div>
+    </div>
+    <div class="sub-summary-card">
+      <div class="sub-summary-icon" style="background:#dcfce7;color:#16a34a;"><i class="bi bi-currency-rupee"></i></div>
+      <div>
+        <div class="sub-summary-label">Monthly Cost</div>
+        <div class="sub-summary-value">&#8377;{{ total_monthly|floatformat:0 }}</div>
+      </div>
+    </div>
+    <div class="sub-summary-card">
+      <div class="sub-summary-icon" style="background:#fef3c7;color:#d97706;"><i class="bi bi-bell"></i></div>
+      <div>
+        <div class="sub-summary-label">Due This Week</div>
+        <div class="sub-summary-value">{{ upcoming }}</div>
+      </div>
+    </div>
+    <div class="sub-summary-card">
+      <div class="sub-summary-icon" style="background:#ede9fe;color:#7c3aed;"><i class="bi bi-graph-up"></i></div>
+      <div>
+        <div class="sub-summary-label">Yearly Cost</div>
+        <div class="sub-summary-value">&#8377;{{ total_yearly|floatformat:0 }}
+          <span style="font-size:.75rem;font-weight:500;color:#94a3b8;">est.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cards grid -->
+  {% if subs %}
+  <div class="sub-grid">
+    {% for sub in subs %}
+    <div class="sub-card {% if sub.status == 'paused' %}sub-card-paused{% elif sub.status == 'cancelled' %}sub-card-cancelled{% endif %}">
+      <div class="sub-card-top">
+        <div class="sub-card-icon sub-cat-{{ sub.category|lower }}">
+          {% if sub.category == 'Streaming' %}<i class="bi bi-play-circle-fill"></i>
+          {% elif sub.category == 'Music' %}<i class="bi bi-music-note-beamed"></i>
+          {% elif sub.category == 'Software' %}<i class="bi bi-code-slash"></i>
+          {% elif sub.category == 'Gaming' %}<i class="bi bi-controller"></i>
+          {% elif sub.category == 'News' %}<i class="bi bi-newspaper"></i>
+          {% elif sub.category == 'Fitness' %}<i class="bi bi-heart-pulse"></i>
+          {% elif sub.category == 'Cloud' %}<i class="bi bi-cloud-fill"></i>
+          {% else %}<i class="bi bi-box"></i>{% endif %}
+        </div>
+        <div class="sub-card-meta">
+          <div class="sub-card-name">{{ sub.name }}</div>
+          <div class="sub-card-cat">{{ sub.category }}</div>
+        </div>
+        <span class="sub-status-badge sub-status-{{ sub.status }}">{{ sub.get_status_display }}</span>
+      </div>
+
+      <div class="sub-card-amount">
+        &#8377;{{ sub.amount|floatformat:2 }}
+        <span class="sub-cycle-badge">/ {{ sub.get_cycle_display }}</span>
+      </div>
+
+      <div class="sub-card-billing">
+        <i class="bi bi-calendar3 me-1"></i>
+        Next billing:
+        <strong>{{ sub.next_billing|date:"d M Y" }}</strong>
+        {% if sub.pk in due_today_pks %}
+        <span class="sub-due-soon" style="background:#fee2e2;color:#dc2626;">Due today</span>
+        {% elif sub.pk in due_soon_pks %}
+        <span class="sub-due-soon">Due soon</span>
+        {% endif %}
+      </div>
+
+      <div class="sub-card-footer">
+        <span class="sub-monthly-est">&#8377;{{ sub.monthly_cost|floatformat:0 }}/mo est.</span>
+        <div class="sub-card-actions">
+          <button class="sub-action-btn edit sub-edit-btn"
+            data-pk="{{ sub.pk }}"
+            data-name="{{ sub.name }}"
+            data-amount="{{ sub.amount }}"
+            data-cycle="{{ sub.cycle }}"
+            data-category="{{ sub.category }}"
+            data-next-billing="{{ sub.next_billing|date:'Y-m-d' }}"
+            data-status="{{ sub.status }}"
+            title="Edit"><i class="bi bi-pencil"></i></button>
+          <form method="post" action="{% url 'subscription_delete' sub.pk %}" style="display:inline;"
+                onsubmit="return confirm('Delete {{ sub.name }}?')">
+            {% csrf_token %}
+            <button type="submit" class="sub-action-btn delete" title="Delete"><i class="bi bi-trash"></i></button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="sub-empty-state">
+    <div class="sub-empty-icon"><i class="bi bi-repeat"></i></div>
+    <div class="sub-empty-title">No subscriptions yet</div>
+    <div class="sub-empty-sub">Add your first recurring payment to start tracking.</div>
+    <button class="sub-btn-add mt-3" onclick="document.getElementById('addSubModal').style.display='flex'">
+      <i class="bi bi-plus-lg me-1"></i> Add Subscription
+    </button>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Add Modal -->
+<div class="inc-modal-overlay" id="addSubModal" style="display:none;">
+  <div class="inc-modal" style="max-width:520px;">
+    <div class="inc-modal-header" style="background:linear-gradient(135deg,#6366f1,#4f46e5);">
+      <span><i class="bi bi-plus-circle me-2"></i>Add Subscription</span>
+      <button class="inc-modal-close" onclick="document.getElementById('addSubModal').style.display='none'">&times;</button>
+    </div>
+    <form method="post" action="{% url 'subscription_add' %}">
+      {% csrf_token %}
+      <div class="inc-modal-body">
+        <div class="stg-field">
+          <label class="stg-label">Name</label>
+          <input type="text" name="name" class="stg-input" placeholder="e.g. Netflix, Spotify..." required>
+        </div>
+        <div class="inc-modal-row">
+          <div class="stg-field">
+            <label class="stg-label">Amount (&#8377;)</label>
+            <input type="number" name="amount" class="stg-input" min="0" step="0.01" placeholder="0.00" required>
+          </div>
+          <div class="stg-field">
+            <label class="stg-label">Billing Cycle</label>
+            <select name="cycle" class="stg-input">
+              {% for val, label in cycle_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="inc-modal-row">
+          <div class="stg-field">
+            <label class="stg-label">Category</label>
+            <select name="category" class="stg-input">
+              {% for val, label in category_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="stg-field">
+            <label class="stg-label">Status</label>
+            <select name="status" class="stg-input">
+              {% for val, label in status_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="stg-field">
+          <label class="stg-label">Next Billing Date</label>
+          <input type="date" name="next_billing" class="stg-input" required>
+        </div>
+      </div>
+      <div class="inc-modal-footer">
+        <button type="button" class="stg-btn-cancel" onclick="document.getElementById('addSubModal').style.display='none'">Cancel</button>
+        <button type="submit" class="sub-btn-add"><i class="bi bi-check-lg me-1"></i> Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="inc-modal-overlay" id="editSubModal" style="display:none;">
+  <div class="inc-modal" style="max-width:520px;">
+    <div class="inc-modal-header" style="background:linear-gradient(135deg,#6366f1,#4f46e5);">
+      <span><i class="bi bi-pencil me-2"></i>Edit Subscription</span>
+      <button class="inc-modal-close" onclick="document.getElementById('editSubModal').style.display='none'">&times;</button>
+    </div>
+    <form method="post" id="editSubForm" action="">
+      {% csrf_token %}
+      <div class="inc-modal-body">
+        <div class="stg-field">
+          <label class="stg-label">Name</label>
+          <input type="text" name="name" id="editSubName" class="stg-input" required>
+        </div>
+        <div class="inc-modal-row">
+          <div class="stg-field">
+            <label class="stg-label">Amount (&#8377;)</label>
+            <input type="number" name="amount" id="editSubAmount" class="stg-input" min="0" step="0.01" required>
+          </div>
+          <div class="stg-field">
+            <label class="stg-label">Billing Cycle</label>
+            <select name="cycle" id="editSubCycle" class="stg-input">
+              {% for val, label in cycle_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="inc-modal-row">
+          <div class="stg-field">
+            <label class="stg-label">Category</label>
+            <select name="category" id="editSubCategory" class="stg-input">
+              {% for val, label in category_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="stg-field">
+            <label class="stg-label">Status</label>
+            <select name="status" id="editSubStatus" class="stg-input">
+              {% for val, label in status_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="stg-field">
+          <label class="stg-label">Next Billing Date</label>
+          <input type="date" name="next_billing" id="editSubBilling" class="stg-input" required>
+        </div>
+      </div>
+      <div class="inc-modal-footer">
+        <button type="button" class="stg-btn-cancel" onclick="document.getElementById('editSubModal').style.display='none'">Cancel</button>
+        <button type="submit" class="sub-btn-add"><i class="bi bi-check-lg me-1"></i> Update</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.sub-edit-btn');
+    if (!btn) return;
+    document.getElementById('editSubName').value    = btn.dataset.name;
+    document.getElementById('editSubAmount').value  = btn.dataset.amount;
+    document.getElementById('editSubBilling').value = btn.dataset.nextBilling;
+    ['editSubCycle','editSubCategory','editSubStatus'].forEach(function(id) {
+      var key = { editSubCycle:'cycle', editSubCategory:'category', editSubStatus:'status' }[id];
+      var sel = document.getElementById(id);
+      for (var i = 0; i < sel.options.length; i++)
+        sel.options[i].selected = sel.options[i].value === btn.dataset[key];
+    });
+    document.getElementById('editSubForm').action = '/subscriptions/' + btn.dataset.pk + '/edit/';
+    document.getElementById('editSubModal').style.display = 'flex';
+  });
+
+  document.querySelectorAll('.inc-modal-overlay').forEach(function(o) {
+    o.addEventListener('click', function(e) { if (e.target === o) o.style.display = 'none'; });
+  });
+</script>
+{% endblock %}

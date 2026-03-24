@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-5">
+
+        <!-- Header -->
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <a href="{% url 'expense_list' %}" class="ef-back-btn">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <div>
+                <h4 class="fw-bold mb-0">{{ action }} Expense</h4>
+                <span class="text-muted" style="font-size:0.82rem;">
+                    {% if action == 'Edit' %}Update the details below{% else %}Fill in the details below{% endif %}
+                </span>
+            </div>
+        </div>
+
+        <div class="ef-card">
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                <!-- Date -->
+                <div class="ef-field">
+                    <label class="ef-label">
+                        <i class="bi bi-calendar3 ef-label-icon"></i> Date
+                    </label>
+                    <div class="ef-input-wrap">
+                        {{ form.date }}
+                    </div>
+                    {% if form.date.errors %}
+                        <div class="ef-error"><i class="bi bi-exclamation-circle me-1"></i>{{ form.date.errors|striptags }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Title -->
+                <div class="ef-field">
+                    <label class="ef-label">
+                        <i class="bi bi-pencil-square ef-label-icon"></i> Title
+                    </label>
+                    <div class="ef-input-wrap">
+                        {{ form.title }}
+                    </div>
+                    {% if form.title.errors %}
+                        <div class="ef-error"><i class="bi bi-exclamation-circle me-1"></i>{{ form.title.errors|striptags }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Amount + Category side by side -->
+                <div class="ef-row">
+                    <div class="ef-field">
+                        <label class="ef-label">
+                            <i class="bi bi-currency-rupee ef-label-icon"></i> Amount
+                        </label>
+                        <div class="ef-input-wrap ef-prefix">
+                            <span class="ef-prefix-symbol">₹</span>
+                            {{ form.amount }}
+                        </div>
+                        {% if form.amount.errors %}
+                            <div class="ef-error"><i class="bi bi-exclamation-circle me-1"></i>{{ form.amount.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="ef-field">
+                        <label class="ef-label">
+                            <i class="bi bi-tag ef-label-icon"></i> Category
+                        </label>
+                        <div class="ef-input-wrap">
+                            {{ form.category }}
+                        </div>
+                        {% if form.category.errors %}
+                            <div class="ef-error"><i class="bi bi-exclamation-circle me-1"></i>{{ form.category.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Category warnings — full width -->
+                <div id="warn-savings" class="ef-warn" style="display:none;">
+                    <i class="bi bi-info-circle" style="flex-shrink:0;margin-top:2px;"></i>
+                    <span>To add funds to a savings goal, use the <a href="{% url 'savings_goals' %}">Savings Goals</a> page instead. This will only log it as a regular expense.</span>
+                </div>
+                <div id="warn-subscription" class="ef-warn" style="display:none;">
+                    <i class="bi bi-info-circle" style="flex-shrink:0;margin-top:2px;"></i>
+                    <span>To track a recurring subscription, use the <a href="{% url 'subscriptions' %}">Subscriptions</a> page instead. This will only log it as a regular expense.</span>
+                </div>
+
+                <!-- Actions -->
+                <div class="ef-actions">
+                    <button type="submit" class="ef-btn-submit">
+                        {% if action == 'Edit' %}
+                            <i class="bi bi-check-lg me-1"></i> Save Changes
+                        {% else %}
+                            <i class="bi bi-plus-lg me-1"></i> Add Expense
+                        {% endif %}
+                    </button>
+                    <a href="{% url 'expense_list' %}" class="ef-btn-cancel">Cancel</a>
+                </div>
+
+            </form>
+        </div>
+
+    </div>
+</div>
+
+<script>
+(function () {
+    var sel = document.querySelector('select[name="category"]');
+    if (!sel) return;
+    function checkWarn() {
+        var v = sel.value;
+        document.getElementById('warn-savings').style.display      = v === 'Savings'      ? 'flex' : 'none';
+        document.getElementById('warn-subscription').style.display = v === 'Subscription' ? 'flex' : 'none';
+    }
+    sel.addEventListener('change', checkWarn);
+    checkWarn();
+})();
+</script>
+
+{% endblock %}

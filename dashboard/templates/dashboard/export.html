@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-7 col-md-9">
+
+  <div class="prof-card">
+    <div class="prof-card-header">
+      <i class="bi bi-download me-2" style="color:#4f8ef7;"></i>
+      Export My Data
+    </div>
+    <p style="font-size:0.85rem;color:#64748b;margin:0 0 20px;">
+      Download your data as a CSV file. Use the filters below to narrow down what you export.
+    </p>
+
+    <form method="post">
+      {% csrf_token %}
+
+      <!-- Date filter mode toggle -->
+      <div class="exp-section-label">Date Filter</div>
+      <div class="exp-mode-tabs mb-3">
+        <button type="button" class="exp-mode-tab active" id="tabRange" onclick="setMode('range')">
+          Custom Range
+        </button>
+        <button type="button" class="exp-mode-tab" id="tabMonthYear" onclick="setMode('monthyear')">
+          Month / Year
+        </button>
+        <button type="button" class="exp-mode-tab" id="tabYear" onclick="setMode('year')">
+          Full Year
+        </button>
+      </div>
+      <input type="hidden" name="filter_mode" id="filterMode" value="range">
+
+      <!-- Custom range -->
+      <div id="panelRange">
+        <div class="exp-row">
+          <div class="exp-field">
+            <label class="prof-label">From</label>
+            <input type="date" name="date_from" class="prof-input">
+          </div>
+          <div class="exp-field">
+            <label class="prof-label">To</label>
+            <input type="date" name="date_to" class="prof-input">
+          </div>
+        </div>
+      </div>
+
+      <!-- Month / Year -->
+      <div id="panelMonthYear" style="display:none;">
+        <div class="exp-row">
+          <div class="exp-field">
+            <label class="prof-label">Month</label>
+            <select name="sel_month" class="prof-input">
+              {% for num, name in months %}
+              <option value="{{ num }}" {% if num == today.month %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="exp-field">
+            <label class="prof-label">Year</label>
+            <select name="sel_year" class="prof-input">
+              {% for y in years %}
+              <option value="{{ y }}" {% if y == today.year %}selected{% endif %}>{{ y }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Full Year -->
+      <div id="panelYear" style="display:none;">
+        <div class="exp-field" style="max-width:200px;">
+          <label class="prof-label">Year</label>
+          <select name="sel_fullyear" class="prof-input">
+            {% for y in years %}
+            <option value="{{ y }}" {% if y == today.year %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Data types -->
+      <div class="exp-section-label" style="margin-top:20px;">Data to Include</div>
+      <div class="exp-check-grid">
+        <label class="exp-check">
+          <input type="checkbox" name="data_types" value="expenses" checked>
+          <span class="exp-check-box"><i class="bi bi-receipt"></i></span>
+          <span>Expenses</span>
+        </label>
+        <label class="exp-check">
+          <input type="checkbox" name="data_types" value="income" checked>
+          <span class="exp-check-box"><i class="bi bi-cash-stack"></i></span>
+          <span>Income</span>
+        </label>
+        <label class="exp-check">
+          <input type="checkbox" name="data_types" value="savings" checked>
+          <span class="exp-check-box"><i class="bi bi-piggy-bank"></i></span>
+          <span>Savings Goals</span>
+        </label>
+        <label class="exp-check">
+          <input type="checkbox" name="data_types" value="subscriptions" checked>
+          <span class="exp-check-box"><i class="bi bi-arrow-repeat"></i></span>
+          <span>Subscriptions</span>
+        </label>
+      </div>
+
+      <!-- Category filter -->
+      <div class="exp-section-label" style="margin-top:20px;">
+        Expense Categories
+        <span style="font-weight:400;color:#94a3b8;font-size:0.78rem;"> — leave all unchecked to include every category</span>
+      </div>
+      <div class="exp-cat-grid">
+        {% for cat in all_cats %}
+        <label class="exp-check exp-check--sm">
+          <input type="checkbox" name="categories" value="{{ cat }}">
+          <span class="exp-check-box exp-check-box--sm"></span>
+          <span>{{ cat }}</span>
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="prof-actions" style="margin-top:28px;">
+        <button type="submit" class="prof-btn-save">
+          <i class="bi bi-file-earmark-arrow-down me-1"></i> Download CSV
+        </button>
+        <a href="{% url 'profile' %}" class="exp-cancel">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+</div>
+</div>
+
+<script>
+function setMode(mode) {
+  document.getElementById('filterMode').value = mode;
+  document.getElementById('panelRange').style.display     = mode === 'range'     ? 'block' : 'none';
+  document.getElementById('panelMonthYear').style.display = mode === 'monthyear' ? 'block' : 'none';
+  document.getElementById('panelYear').style.display      = mode === 'year'      ? 'block' : 'none';
+  document.getElementById('tabRange').classList.toggle('active',     mode === 'range');
+  document.getElementById('tabMonthYear').classList.toggle('active', mode === 'monthyear');
+  document.getElementById('tabYear').classList.toggle('active',      mode === 'year');
+}
+</script>
+{% endblock %}

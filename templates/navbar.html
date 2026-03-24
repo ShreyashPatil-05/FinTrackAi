@@ -1,0 +1,72 @@
+{% load static %}
+<nav class="navbar navbar-expand-lg py-2 {% if request.resolver_match.url_name == 'landing' %}navbar-landing{% else %}navbar-app shadow-sm{% endif %}">
+    <div class="container">
+
+        <!-- Brand -->
+        <a class="navbar-brand d-flex align-items-center gap-2" href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}/{% endif %}">
+            <img src="{% static 'images/logo.png' %}" alt="FinTrack Logo" class="navbar-logo">
+            <span class="navbar-brand-text">Fin<span class="navbar-brand-accent">Track</span></span>
+        </a>
+
+        <!-- Mobile Toggle -->
+        <button class="navbar-toggler" type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarContent">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarContent">
+
+            <!-- Right Section -->
+            <ul class="navbar-nav ms-auto align-items-center">
+
+                {% if user.is_authenticated %}
+                <li class="nav-item">
+                    <a class="nav-link px-3 {% if request.resolver_match.url_name == 'dashboard' %}nav-link-active{% endif %}" href="{% url 'dashboard' %}">Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-3 {% if request.resolver_match.url_name == 'expense_list' %}nav-link-active{% endif %}" href="{% url 'expense_list' %}">Expenses</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-3 {% if request.resolver_match.url_name == 'subscriptions' %}nav-link-active{% endif %}" href="{% url 'subscriptions' %}">Subscriptions</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-3 {% if request.resolver_match.url_name == 'savings_goals' or request.resolver_match.url_name == 'savings_goal_detail' %}nav-link-active{% endif %}" href="{% url 'savings_goals' %}">Savings Goals</a>
+                </li>
+                <li class="nav-item dropdown ms-2">
+                    <a class="nav-link dropdown-toggle d-flex align-items-center gap-2"
+                       href="#" role="button" data-bs-toggle="dropdown">
+                        {% if user.profile.avatar %}
+                            <img src="{{ user.profile.avatar.url }}" alt="avatar" class="user-avatar user-avatar-img">
+                        {% else %}
+                            <span class="user-avatar">{{ user.username|first|upper }}</span>
+                        {% endif %}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2">
+                        <li><a class="dropdown-item" href="{% url 'profile' %}">Profile</a></li>
+                        <li><a class="dropdown-item" href="{% url 'settings' %}">Settings</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="{% url 'logout' %}">Logout</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item ms-2">
+                    <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+                        <i class="bi bi-moon-fill" id="themeIcon"></i>
+                    </button>
+                </li>
+
+                {% else %}
+                    {% if not hide_auth_nav %}
+                    <li class="nav-item me-2">
+                        <a class="btn btn-nav-ghost" href="{% url 'login' %}">Sign In</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-nav-primary" href="{% url 'register' %}">Get Started</a>
+                    </li>
+                    {% endif %}
+                {% endif %}
+
+            </ul>
+        </div>
+    </div>
+</nav>

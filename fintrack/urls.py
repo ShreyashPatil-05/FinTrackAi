@@ -18,6 +18,7 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path('', include('dashboard.urls')),
     path('expenses/', include('expenses.urls')),
-    # Catch-all — must be last, handles any unmatched URL
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + [
+    # Catch-all — must be last, after media URLs
     re_path(r'^.*$', custom_404),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]

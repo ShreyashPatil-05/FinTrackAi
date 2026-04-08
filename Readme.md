@@ -1,6 +1,6 @@
 # FinTrack — Personal Finance Tracker
 
-A full-stack web application built with Django that helps users track expenses, manage income, set savings goals, and monitor subscriptions — all in one place.
+A full-stack web application built with Django that helps users track expenses, manage income, set savings goals and monitor subscriptions — all in one place.
 
 ---
 
@@ -21,9 +21,9 @@ A full-stack web application built with Django that helps users track expenses, 
 ## Features
 
 ### Core
-- Expense tracking with categories, search, and month-based navigation
+- Expense tracking with categories, search and month-based navigation
 - Income management with monthly view and source tracking
-- Interactive dashboard with spending charts, financial health score, and month-end forecast
+- Interactive dashboard with spending charts, financial health score and month-end forecast
 - Category-wise budget limits with live progress bars and alerts
 - Savings goals with contribution history and progress tracking
 - Subscription tracker with auto-billing date advancement

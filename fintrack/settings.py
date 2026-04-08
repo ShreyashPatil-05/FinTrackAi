@@ -11,8 +11,11 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+load_dotenv()
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -20,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-#zac6geu!x6$8m-o$lqkqj0eh^73&6&n(z9&7_n5^zj7w01wea'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'fallback-dev-key-change-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -37,10 +40,24 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # django-allauth
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+
+    # Project apps
     'accounts',
     'expenses',
     'dashboard',
+
+    # Rate limiting
+    'axes',
 ]
+
+SITE_ID = 1
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -50,6 +67,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
+    'axes.middleware.AxesMiddleware',
 ]
 
 ROOT_URLCONF = 'fintrack.urls'
@@ -132,3 +151,39 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 LOGIN_REDIRECT_URL = "dashboard"
 LOGOUT_REDIRECT_URL = "landing"
+
+# ── django-allauth ─────────────────────────────────────────
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
+
+ACCOUNT_EMAIL_VERIFICATION = 'none'
+SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_AUTO_SIGNUP = True
+
+# ── Email (Gmail SMTP) ────────────────────────────────────
+import os
+EMAIL_BACKEND     = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST        = 'smtp.gmail.com'
+EMAIL_PORT        = 587
+EMAIL_USE_TLS     = True
+EMAIL_HOST_USER   = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = f'FinTrack <{EMAIL_HOST_USER}>'
+
+# ── django-axes (brute force protection) ──────────────────
+AXES_FAILURE_LIMIT = 5           # lock after 5 failed attempts
+AXES_COOLOFF_TIME = 0.25         # locked for 15 minutes
+AXES_LOCKOUT_PARAMETERS = ['ip_address']  # lock by IP
+AXES_RESET_ON_SUCCESS = True     # reset count on successful login
+AXES_ENABLE_ADMIN = True

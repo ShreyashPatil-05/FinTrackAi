@@ -32,6 +32,17 @@ def landing(request):
 def dashboard_view(request):
     from .models import UserProfile
     profile_obj, _ = UserProfile.objects.get_or_create(user=request.user)
+
+    # Advance overdue subscriptions on every dashboard load
+    from datetime import date as _today_date
+    _today = _today_date.today()
+    for _sub in Subscription.objects.filter(
+        user=request.user, status='active', next_billing__lt=_today
+    ):
+        try:
+            _sub.advance_billing_date()
+        except Exception:
+            pass
     show_tour = not profile_obj.onboarding_complete
 
     now = datetime.now()
@@ -415,6 +426,18 @@ def profile(request):
     })
 
 
+@login_required(login_url='login')
+def delete_account(request):
+    if request.method == 'POST':
+        user = request.user
+        from django.contrib.auth import logout
+        logout(request)
+        user.delete()
+        messages.success(request, 'Your account has been deleted.')
+        return redirect('landing')
+    return redirect('profile')
+
+
 # ---------------------------
 # Settings — dispatcher
 # ---------------------------
@@ -429,32 +452,63 @@ def settings(request):
 # ---------------------------
 
 @login_required(login_url='login')
+@login_required(login_url='login')
 def settings_income(request):
-    # Filters
-    date_from  = request.GET.get('date_from', '')
-    date_to    = request.GET.get('date_to', '')
-    source_q   = request.GET.get('source', '')
+    from calendar import month_name as _month_name
+    import calendar as _cal
+    from datetime import date as _date
 
-    qs = Income.objects.filter(user=request.user)
-    if date_from:
-        qs = qs.filter(date__gte=date_from)
-    if date_to:
-        qs = qs.filter(date__lte=date_to)
+    today = _date.today()
+
+    # Month/year navigation
+    try:
+        view_month = int(request.GET.get('month', today.month))
+        view_year  = int(request.GET.get('year',  today.year))
+        if not (1 <= view_month <= 12):
+            raise ValueError
+    except (ValueError, TypeError):
+        view_month, view_year = today.month, today.year
+
+    # Prev/next month nav
+    if view_month == 1:
+        prev_m, prev_y = 12, view_year - 1
+    else:
+        prev_m, prev_y = view_month - 1, view_year
+    if view_month == 12:
+        next_m, next_y = 1, view_year + 1
+    else:
+        next_m, next_y = view_month + 1, view_year
+
+    # Base queryset for selected month
+    qs = Income.objects.filter(user=request.user, date__month=view_month, date__year=view_year)
+
+    # Optional filters for browsing
+    source_q = request.GET.get('source', '')
     if source_q:
         qs = qs.filter(source__icontains=source_q)
 
     total_amount  = float(qs.aggregate(Sum('amount'))['amount__sum'] or 0)
     total_records = qs.count()
 
+    # Default date = today if on current month, else 1st of selected month
+    if view_month == today.month and view_year == today.year:
+        default_date = today.strftime('%Y-%m-%d')
+    else:
+        default_date = f'{view_year}-{view_month:02d}-01'
+
     return render(request, 'dashboard/settings.html', {
         'section': 'income',
         'incomes': qs,
         'total_amount': total_amount,
         'total_records': total_records,
-        'date_from': date_from,
-        'date_to': date_to,
         'source_q': source_q,
         'source_choices': Income.SOURCE_CHOICES,
+        'view_month': view_month,
+        'view_year': view_year,
+        'view_month_name': _month_name[view_month],
+        'prev_m': prev_m, 'prev_y': prev_y,
+        'next_m': next_m, 'next_y': next_y,
+        'default_date': default_date,
     })
 
 
@@ -462,14 +516,18 @@ def settings_income(request):
 def income_add(request):
     if request.method == 'POST':
         try:
+            inc_date = request.POST['date']
             Income.objects.create(
                 user=request.user,
-                date=request.POST['date'],
+                date=inc_date,
                 source=request.POST.get('source', 'Other'),
                 description=request.POST.get('description', '').strip(),
                 amount=float(request.POST['amount']),
             )
             messages.success(request, 'Income added.')
+            from datetime import datetime
+            d = datetime.strptime(inc_date, '%Y-%m-%d')
+            return redirect(f"/settings/income/?month={d.month}&year={d.year}")
         except Exception:
             messages.error(request, 'Failed to add income.')
     return redirect('settings_income')
@@ -678,6 +736,7 @@ def settings_budget(request):
 def settings_upload(request):
     preview   = None
     imported  = 0
+    skipped   = []
     error     = None
     success   = False
 
@@ -708,27 +767,55 @@ def settings_upload(request):
                     user=request.user).values_list('name', flat=True))
                 valid_cats = DEFAULT_CATEGORIES + [c for c in custom_cats if c not in DEFAULT_CATEGORIES]
 
-                for row in reader:
-                    try:
-                        cat = row.get('category', '').strip().title()
-                        if cat not in valid_cats:
-                            cat = 'Other'
-                        Expense.objects.create(
-                            user=request.user,
-                            title=row['title'].strip(),
-                            category=cat,
-                            amount=float(row['amount']),
-                            date=row['date'].strip(),
-                        )
-                        imported += 1
-                    except Exception:
+                skipped = []
+                for row_num, row in enumerate(reader, start=2):  # start=2 (row 1 is header)
+                    title    = row.get('title', '').strip()
+                    amount_s = row.get('amount', '').strip()
+                    date_s   = row.get('date', '').strip()
+                    cat      = row.get('category', '').strip().title()
+
+                    # Validate title
+                    if not title:
+                        skipped.append(f"Row {row_num}: missing title")
                         continue
+
+                    # Validate amount
+                    try:
+                        amount = float(amount_s)
+                        if amount <= 0:
+                            raise ValueError
+                    except (ValueError, TypeError):
+                        skipped.append(f"Row {row_num} ({title}): invalid amount \"{amount_s}\"")
+                        continue
+
+                    # Validate date
+                    try:
+                        from datetime import datetime as _dt
+                        _dt.strptime(date_s, '%Y-%m-%d')
+                    except ValueError:
+                        skipped.append(f"Row {row_num} ({title}): invalid date \"{date_s}\" — use YYYY-MM-DD")
+                        continue
+
+                    # Sanitize category
+                    if cat not in valid_cats:
+                        cat = 'Other'
+
+                    Expense.objects.create(
+                        user=request.user,
+                        title=title,
+                        category=cat,
+                        amount=amount,
+                        date=date_s,
+                    )
+                    imported += 1
+
                 success = True
 
     return render(request, 'dashboard/settings.html', {
         'section': 'upload',
         'preview': preview,
         'imported': imported,
+        'skipped': skipped,
         'error': error,
         'success': success,
     })
@@ -917,8 +1004,6 @@ def savings_goal_add_funds(request, pk):
                 else:
                     fund_date = request.POST.get('date', '').strip() or str(date.today())
                     with transaction.atomic():
-                        goal.saved = float(goal.saved) + amount
-                        goal.save(update_fields=['saved'])
                         SavingsContribution.objects.create(goal=goal, amount=amount, date=fund_date)
                         Expense.objects.create(
                             user=request.user,

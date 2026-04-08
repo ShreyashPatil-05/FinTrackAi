@@ -79,6 +79,14 @@ class ChangePasswordForm(forms.Form):
         })
     )
 
+    current_password = forms.CharField(
+        label="Current Password",
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter current password'
+        })
+    )
+
     new_password1 = forms.CharField(
         label="New Password",
         widget=forms.PasswordInput(attrs={

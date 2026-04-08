@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load fintrack_filters %}
 
 {% block title %}Savings Goals — FinTrack{% endblock %}
 
@@ -59,7 +60,7 @@
           </div>
           <div class="text-end">
             <div class="sg-prog-label">SAVED</div>
-            <div class="sg-prog-saved">₹{{ goal.saved|floatformat:0 }} <span class="sg-prog-target">/ ₹{{ goal.target|floatformat:0 }}</span></div>
+            <div class="sg-prog-saved">{{ goal.saved|inr }} <span class="sg-prog-target">/ {{ goal.target|inr }}</span></div>
           </div>
         </div>
 

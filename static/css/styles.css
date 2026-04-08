@@ -1431,6 +1431,47 @@ body {
 
 .auth-switch a:hover { color: #7c3aed; }
 
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 1.2rem 0 1rem;
+    color: #94a3b8;
+    font-size: 0.8rem;
+}
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border, #e2e8f0);
+}
+.btn-google-auth {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 10px 16px;
+    border: 1.5px solid var(--border, #e2e8f0);
+    border-radius: 10px;
+    background: var(--card, #fff);
+    color: var(--text, #1e293b);
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: box-shadow 0.2s, border-color 0.2s;
+}
+.btn-google-auth:hover {
+    border-color: #4285F4;
+    box-shadow: 0 2px 12px rgba(66,133,244,0.15);
+    color: var(--text, #1e293b);
+}
+[data-theme="dark"] .btn-google-auth {
+    background: var(--bg3);
+    border-color: var(--border);
+    color: var(--text);
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
     .auth-body { overflow: auto; height: auto; }
@@ -2013,6 +2054,84 @@ select.expense-input {
     margin: 0;
 }
 
+.el-pagination {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+    margin: 20px 0 8px;
+    flex-wrap: wrap;
+}
+.el-page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1.5px solid #e2e8f0;
+    background: var(--card, #fff);
+    color: var(--text, #1e293b);
+    font-size: 0.88rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.15s;
+}
+.el-page-btn:hover { border-color: #6366f1; color: #6366f1; }
+.el-page-btn.active { background: #6366f1; border-color: #6366f1; color: #fff; font-weight: 700; }
+.el-page-btn.disabled { opacity: 0.35; pointer-events: none; }
+.el-page-info { font-size: 0.82rem; color: #94a3b8; margin-left: 6px; }
+.el-per-page { display: flex; align-items: center; gap: 4px; margin-left: 12px; padding-left: 12px; border-left: 1px solid #e2e8f0; }
+[data-theme="dark"] .el-page-btn { border-color: var(--border); background: var(--bg3); }
+[data-theme="dark"] .el-per-page { border-color: var(--border); }
+
+.el-perpage-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 10px 16px;
+    background: var(--card, #fff);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    width: fit-content;
+}
+.el-perpage-label {
+    font-size: 0.82rem;
+    color: #64748b;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.el-perpage-pills {
+    display: flex;
+    gap: 4px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    padding: 3px;
+}
+.el-perpage-pill {
+    padding: 4px 14px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #64748b;
+    text-decoration: none;
+    transition: all 0.15s;
+}
+.el-perpage-pill:hover { background: #fff; color: #6366f1; }
+.el-perpage-pill.active { background: #6366f1; color: #fff; box-shadow: 0 2px 6px rgba(99,102,241,0.3); }
+.el-perpage-count {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    padding-left: 8px;
+    border-left: 1px solid #e2e8f0;
+}
+[data-theme="dark"] .el-perpage-wrap { background: var(--bg3); border-color: var(--border); }
+[data-theme="dark"] .el-perpage-pills { background: var(--bg2); }
+[data-theme="dark"] .el-perpage-pill:hover { background: var(--card); }
+[data-theme="dark"] .el-perpage-count { border-color: var(--border); }
+
 /* ==================================
    Expense List — View Toggle & Filter Button
 ================================== */
@@ -2303,6 +2422,22 @@ select.expense-input {
 .prof-btn-save:hover {
     transform: translateY(-1px);
     box-shadow: 0 6px 20px rgba(79,142,247,0.45);
+}
+
+.prof-btn-delete {
+    padding: 10px 28px;
+    background: #dc2626;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+}
+.prof-btn-delete:hover {
+    background: #b91c1c;
+    transform: translateY(-1px);
 }
 
 .prof-info-row {
@@ -2606,6 +2741,13 @@ select.expense-input {
 .stg-alert.error {
     background: #fef2f2;
     border: 1px solid #fecaca;
+}
+
+.stg-alert.warning {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+}
     color: #dc2626;
 }
 
@@ -3480,6 +3622,7 @@ select.expense-input {
 [data-theme="dark"] .stg-hint code { background: var(--bg3); color: #a5b4fc; }
 [data-theme="dark"] .stg-alert.success { background: rgba(22,163,74,.12); border-color: rgba(22,163,74,.3); color: #4ade80; }
 [data-theme="dark"] .stg-alert.error { background: rgba(220,38,38,.12); border-color: rgba(220,38,38,.3); color: #f87171; }
+[data-theme="dark"] .stg-alert.warning { background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.3); color: #fcd34d; }
 
 /* ── Income section ── */
 [data-theme="dark"] .inc-filter-strip { background: var(--bg3); border-color: var(--border); }

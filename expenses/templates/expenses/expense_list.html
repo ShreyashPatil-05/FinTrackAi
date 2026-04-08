@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load fintrack_filters %}
 
 {% block content %}
 
@@ -32,7 +33,7 @@
 <!-- Month Navigator -->
 {% if not is_custom %}
 <div class="el-month-nav mb-4">
-    <a href="?month={{ prev_m }}&year={{ prev_y }}" class="el-month-arrow">
+    <a href="?month={{ prev_m }}&year={{ prev_y }}&per_page={{ per_page }}&search={{ search }}{% for c in selected_categories %}&category={{ c }}{% endfor %}" class="el-month-arrow">
         <i class="bi bi-chevron-left"></i>
     </a>
     <div class="el-month-center">
@@ -47,7 +48,7 @@
             {% endfor %}
         </select>
     </div>
-    <a href="?month={{ next_m }}&year={{ next_y }}" class="el-month-arrow">
+    <a href="?month={{ next_m }}&year={{ next_y }}&per_page={{ per_page }}&search={{ search }}{% for c in selected_categories %}&category={{ c }}{% endfor %}" class="el-month-arrow">
         <i class="bi bi-chevron-right"></i>
     </a>
 </div>
@@ -64,7 +65,7 @@
     <div class="el-summary-divider"></div>
     <div class="el-summary-item">
         <span class="el-summary-label">Total Spent</span>
-        <span class="el-summary-value red">₹{{ total }}</span>
+        <span class="el-summary-value red">{{ total|inr }}</span>
     </div>
 </div>
 
@@ -178,7 +179,7 @@
                         <span class="el-badge el-badge-{{ expense.category|lower }}">{{ expense.category }}</span>
                     </td>
                     <td class="text-end">
-                        <span class="el-amount">₹{{ expense.amount }}</span>
+                        <span class="el-amount">{{ expense.amount|inr }}</span>
                     </td>
                     <td class="text-center">
                         <a href="{% url 'edit_expense' expense.id %}" class="el-action-btn edit" title="Edit">
@@ -222,7 +223,7 @@
                    value="{{ expense.id }}" onchange="updateSelection()">
             <div class="el-expense-card-top">
                 <span class="el-badge el-badge-{{ expense.category|lower }}">{{ expense.category }}</span>
-                <span class="el-amount">₹{{ expense.amount }}</span>
+                <span class="el-amount">{{ expense.amount|inr }}</span>
             </div>
             <div class="el-expense-card-title">{{ expense.title }}</div>
             <div class="el-expense-card-date">
@@ -249,6 +250,48 @@
     {% endif %}
 </div>
 
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="el-pagination">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}&per_page={{ per_page }}&month={{ view_month }}&year={{ view_year }}&search={{ search }}&start_date={{ start_date }}&end_date={{ end_date }}{% for c in selected_categories %}&category={{ c }}{% endfor %}" class="el-page-btn">
+        <i class="bi bi-chevron-left"></i>
+    </a>
+    {% else %}
+    <span class="el-page-btn disabled"><i class="bi bi-chevron-left"></i></span>
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+        <span class="el-page-btn active">{{ num }}</span>
+        {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+        <a href="?page={{ num }}&per_page={{ per_page }}&month={{ view_month }}&year={{ view_year }}&search={{ search }}&start_date={{ start_date }}&end_date={{ end_date }}{% for c in selected_categories %}&category={{ c }}{% endfor %}" class="el-page-btn">{{ num }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}&per_page={{ per_page }}&month={{ view_month }}&year={{ view_year }}&search={{ search }}&start_date={{ start_date }}&end_date={{ end_date }}{% for c in selected_categories %}&category={{ c }}{% endfor %}" class="el-page-btn">
+        <i class="bi bi-chevron-right"></i>
+    </a>
+    {% else %}
+    <span class="el-page-btn disabled"><i class="bi bi-chevron-right"></i></span>
+    {% endif %}
+
+    <span class="el-page-info">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+</div>
+{% endif %}
+
+<!-- Per-page selector — always visible -->
+<div class="el-perpage-wrap">
+    <span class="el-perpage-label"><i class="bi bi-list-ol me-1"></i>Rows per page</span>
+    <div class="el-perpage-pills">
+        {% for n in "10,20,50"|split:"," %}
+        <a href="?page=1&per_page={{ n }}&month={{ view_month }}&year={{ view_year }}&search={{ search }}&start_date={{ start_date }}&end_date={{ end_date }}{% for c in selected_categories %}&category={{ c }}{% endfor %}"
+           class="el-perpage-pill {% if per_page|stringformat:'s' == n %}active{% endif %}">{{ n }}</a>
+        {% endfor %}
+    </div>
+    <span class="el-perpage-count">{{ count }} total</span>
+</div>
+
 <span id="pageData"
     data-has-active="{% if search or selected_categories or start_date or end_date %}true{% else %}false{% endif %}"
     style="display:none;"></span>
@@ -265,7 +308,11 @@ var FILTER_KEY  = 'fintrack_filter_open';
 function goToMonth() {
     var m = document.getElementById('monthSelect').value;
     var y = document.getElementById('yearSelect').value;
-    window.location.href = '?month=' + m + '&year=' + y;
+    var params = new URLSearchParams(window.location.search);
+    params.set('month', m);
+    params.set('year', y);
+    params.set('page', '1');
+    window.location.href = '?' + params.toString();
 }
 
 function setView(view) {

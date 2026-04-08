@@ -75,7 +75,6 @@ class SavingsGoal(models.Model):
     user        = models.ForeignKey(User, on_delete=models.CASCADE, related_name='savings_goals')
     name        = models.CharField(max_length=100)
     target      = models.DecimalField(max_digits=12, decimal_places=2)
-    saved       = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     target_date = models.DateField(null=True, blank=True)
     icon        = models.CharField(max_length=30, default='piggy-bank')
     created_at  = models.DateTimeField(auto_now_add=True)
@@ -87,16 +86,22 @@ class SavingsGoal(models.Model):
         return f"{self.name} ({self.user.username})"
 
     @property
+    def saved(self):
+        from django.db.models import Sum
+        total = self.contributions.aggregate(Sum('amount'))['amount__sum']
+        return float(total or 0)
+
+    @property
     def progress_pct(self):
         if not self.target or self.target <= 0:
             return 0
-        return min(round(float(self.saved or 0) / float(self.target) * 100, 1), 100)
+        return min(round(self.saved / float(self.target) * 100, 1), 100)
 
     @property
     def remaining(self):
         if not self.target:
             return 0
-        return max(float(self.target) - float(self.saved or 0), 0)
+        return max(float(self.target) - self.saved, 0)
 
 
 class SavingsContribution(models.Model):

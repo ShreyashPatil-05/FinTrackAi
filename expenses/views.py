@@ -46,6 +46,19 @@ def expense_list(request):
         expenses = expenses.filter(category__in=selected_categories)
 
     total = expenses.aggregate(Sum('amount'))['amount__sum'] or 0
+    count = expenses.count()
+
+    # Pagination — user-selectable page size
+    from django.core.paginator import Paginator
+    try:
+        per_page = int(request.GET.get('per_page', 10))
+        if per_page not in (10, 20, 50):
+            per_page = 10
+    except (ValueError, TypeError):
+        per_page = 10
+    paginator = Paginator(expenses, per_page)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
 
     # Month nav
     if view_month == 1:
@@ -64,11 +77,13 @@ def expense_list(request):
     )
 
     return render(request, 'expenses/expense_list.html', {
-        'expenses': expenses,
+        'expenses': page_obj,
+        'page_obj': page_obj,
         'category_list': _all_categories(request.user),
         'selected_categories': selected_categories,
         'total': total,
-        'count': expenses.count(),
+        'count': count,
+        'per_page': per_page,
         'view_month': view_month,
         'view_year': view_year,
         'view_month_name': month_name[view_month],

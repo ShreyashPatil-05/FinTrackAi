@@ -3,33 +3,71 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from .forms import MyUserCreationForm, LoginForm, ChangePasswordForm
+from .models import EmailVerificationToken
 
 
 # ----------------------------
 # REGISTER VIEW
 # ----------------------------
 def register_view(request):
-
     form = MyUserCreationForm(request.POST or None)
 
     if request.method == "POST":
         if form.is_valid():
-            user = form.save()
-            login(request, user)
-            return redirect("dashboard")
+            user = form.save(commit=False)
+            user.is_active = False  # inactive until email verified
+            user.save()
+
+            # Create verification token and send email
+            token_obj = EmailVerificationToken.objects.create(user=user)
+            _send_verification_email(request, user, token_obj.token)
+
+            messages.success(request, "Account created! Check your email to verify your account.")
+            return redirect("login")
         else:
             messages.error(request, "Registration failed. Please fix the errors.")
 
-    context = {
+    return render(request, "accounts/auth.html", {
         "form": form,
         "page_title": "Create Account",
         "button_text": "Register",
         "page_type": "register",
-        "hide_auth_nav": True
+        "hide_auth_nav": True,
+    })
 
-    }
 
-    return render(request, "accounts/auth.html", context)
+def _send_verification_email(request, user, token):
+    from django.core.mail import send_mail
+    from django.urls import reverse
+    verify_url = request.build_absolute_uri(
+        reverse('verify_email', args=[str(token)])
+    )
+    send_mail(
+        subject='Verify your FinTrack account',
+        message=(
+            f"Hi {user.username},\n\n"
+            f"Click the link below to verify your email address:\n\n"
+            f"{verify_url}\n\n"
+            f"This link is valid for 24 hours.\n\n"
+            f"— FinTrack"
+        ),
+        from_email=None,  # uses DEFAULT_FROM_EMAIL
+        recipient_list=[user.email],
+        fail_silently=False,
+    )
+
+
+def verify_email(request, token):
+    try:
+        token_obj = EmailVerificationToken.objects.get(token=token)
+        user = token_obj.user
+        user.is_active = True
+        user.save(update_fields=['is_active'])
+        token_obj.delete()
+        messages.success(request, "Email verified! You can now log in.")
+    except EmailVerificationToken.DoesNotExist:
+        messages.error(request, "Invalid or expired verification link.")
+    return redirect("login")
 
 
 # ----------------------------
@@ -81,14 +119,18 @@ def change_password_view(request):
 
     if request.method == "POST":
         if form.is_valid():
-            username = form.cleaned_data.get("username")
-            new_password = form.cleaned_data.get("new_password1")
+            username         = form.cleaned_data.get("username")
+            current_password = form.cleaned_data.get("current_password")
+            new_password     = form.cleaned_data.get("new_password1")
             try:
                 user = User.objects.get(username=username)
-                user.set_password(new_password)
-                user.save()
-                messages.success(request, "Password changed successfully. Please log in.")
-                return redirect("login")
+                if not user.check_password(current_password):
+                    messages.error(request, "Current password is incorrect.")
+                else:
+                    user.set_password(new_password)
+                    user.save()
+                    messages.success(request, "Password changed successfully. Please log in.")
+                    return redirect("login")
             except User.DoesNotExist:
                 messages.error(request, "No account found with that username.")
 

@@ -18,6 +18,9 @@
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+
+    <!-- Shared JS utilities (loaded early so inline scripts can use them) -->
+    <script src="{% static 'js/utils.js' %}"></script>
 </head>
 
 <body class="d-flex flex-column min-vh-100">

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load fintrack_filters %}
 
 {% block content %}
 <style>
@@ -93,7 +94,7 @@
         <div class="db-stat-card">
             <div class="db-stat-icon" style="background:#dbeafe;color:#2563eb;"><i class="bi bi-arrow-up-circle"></i></div>
             <div class="db-stat-label">Income</div>
-            <div class="db-stat-value">&#8377;{{ income|floatformat:0 }}</div>
+            <div class="db-stat-value">{{ income|inr }}</div>
             <div class="db-stat-sub">{{ filter_label }}</div>
         </div>
     </div>
@@ -101,7 +102,7 @@
         <div class="db-stat-card">
             <div class="db-stat-icon" style="background:#fee2e2;color:#dc2626;"><i class="bi bi-wallet2"></i></div>
             <div class="db-stat-label">Spent</div>
-            <div class="db-stat-value text-danger">&#8377;{{ total|floatformat:0 }}</div>
+            <div class="db-stat-value text-danger">{{ total|inr }}</div>
             <div class="db-stat-sub">{{ count }} transaction{{ count|pluralize }}</div>
         </div>
     </div>
@@ -110,7 +111,7 @@
             <div class="db-stat-icon" style="background:#dcfce7;color:#16a34a;"><i class="bi bi-piggy-bank"></i></div>
             <div class="db-stat-label">Balance</div>
             <div class="db-stat-value {% if balance >= 0 %}text-success{% else %}text-danger{% endif %}">
-                &#8377;{{ balance|floatformat:0 }}
+                {{ balance|inr }}
             </div>
             <div class="db-stat-sub">Remaining</div>
         </div>
@@ -154,8 +155,8 @@
                         <div class="db-health-bar-fill"></div>
                     </div>
                     <div class="db-health-bar-labels">
-                        <span>&#8377;{{ balance|floatformat:0 }} saved</span>
-                        <span>&#8377;{{ income|floatformat:0 }} income</span>
+                        <span>{{ balance|inr }} saved</span>
+                        <span>{{ income|inr }} income</span>
                     </div>
                 </div>
                 <div class="db-health-label-row">SAVINGS RATE</div>
@@ -169,17 +170,17 @@
                 <div class="db-health-stats">
                     <div class="db-health-stat">
                         <div class="db-health-stat-label">INCOME</div>
-                        <div class="db-health-stat-val">&#8377;{{ income|floatformat:0 }}</div>
+                        <div class="db-health-stat-val">{{ income|inr }}</div>
                     </div>
                     <div class="db-health-stat-sep"></div>
                     <div class="db-health-stat">
                         <div class="db-health-stat-label">SPENT</div>
-                        <div class="db-health-stat-val">&#8377;{{ total|floatformat:0 }}</div>
+                        <div class="db-health-stat-val">{{ total|inr }}</div>
                     </div>
                     <div class="db-health-stat-sep"></div>
                     <div class="db-health-stat">
                         <div class="db-health-stat-label">BALANCE</div>
-                        <div class="db-health-stat-val db-health-balance-val">&#8377;{{ balance|floatformat:0 }}</div>
+                        <div class="db-health-stat-val db-health-balance-val">{{ balance|inr }}</div>
                     </div>
                 </div>
                 <hr class="db-health-divider">
@@ -237,7 +238,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="db-top-cat-amt">&#8377;{{ amt|floatformat:0 }}</div>
+                    <div class="db-top-cat-amt">{{ amt|inr }}</div>
                 </div>
                 {% empty %}
                 <p class="text-muted" style="font-size:0.85rem;padding:8px 0;">No data for this period.</p>
@@ -260,7 +261,7 @@
                         <div class="db-recent-title">{{ expense.title }}</div>
                         <div class="db-recent-meta">{{ expense.date }} &middot; {{ expense.category }}</div>
                     </div>
-                    <div class="db-recent-amt">&#8377;{{ expense.amount|floatformat:0 }}</div>
+                    <div class="db-recent-amt">{{ expense.amount|inr }}</div>
                 </a>
                 {% endfor %}
             </div>
@@ -343,7 +344,7 @@
                         cornerRadius: 8,
                         displayColors: false,
                         callbacks: {
-                            label: function(ctx) { return '  ₹' + ctx.parsed.y.toLocaleString('en-IN'); }
+                            label: function(ctx) { return '  ' + inrJS(ctx.parsed.y); }
                         }
                     }
                 },
@@ -365,7 +366,7 @@
                         border: { display: false, dash: [] },
                         ticks: {
                             font: { size: 11 }, color: '#94a3b8',
-                            callback: function(v) { return '₹' + (v >= 1000 ? (v/1000).toFixed(1)+'k' : v); }
+                            callback: function(v) { return inrJS(v); }
                         }
                     }
                 }
@@ -401,7 +402,7 @@
                     ctx.fillText(pct + '%', x, y - 8);
                     ctx.font         = '11px Inter, sans-serif';
                     ctx.fillStyle    = 'rgba(255,255,255,.88)';
-                    ctx.fillText('₹' + catAmounts[i].toLocaleString('en-IN'), x, y + 8);
+                    ctx.fillText(inrJS(catAmounts[i]), x, y + 8);
                     ctx.restore();
                 });
             }
@@ -446,7 +447,7 @@
                         callbacks: {
                             label: function(ctx) {
                                 var pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
-                                return '  ₹' + ctx.parsed.toLocaleString('en-IN') + '  (' + pct + '%)';
+                return '  ' + inrJS(ctx.parsed) + '  (' + pct + '%)';
                             }
                         }
                     }
@@ -496,7 +497,7 @@
             </span>
           </div>
           <div class="db-forecast-meta">
-            ₹{{ forecast.daily_avg|floatformat:0 }}/day average spend
+            {{ forecast.daily_avg|inr }}/day average spend
           </div>
         </div>
       </div>
@@ -504,13 +505,13 @@
       <!-- right: stats -->
       <div class="db-forecast-stats">
         <div class="db-forecast-stat">
-          <div class="db-forecast-stat-val">₹{{ forecast.forecast_total|floatformat:0 }}</div>
+          <div class="db-forecast-stat-val">{{ forecast.forecast_total|inr }}</div>
           <div class="db-forecast-stat-lbl">Projected Spend</div>
         </div>
         <div class="db-forecast-stat-sep"></div>
         <div class="db-forecast-stat">
           <div class="db-forecast-stat-val {% if forecast.forecast_balance >= 0 %}db-forecast-positive{% else %}db-forecast-negative{% endif %}">
-            ₹{{ forecast.forecast_balance|floatformat:0 }}
+            {{ forecast.forecast_balance|inr }}
           </div>
           <div class="db-forecast-stat-lbl">Projected Balance</div>
         </div>

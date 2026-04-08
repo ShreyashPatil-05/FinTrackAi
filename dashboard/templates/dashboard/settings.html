@@ -1,5 +1,8 @@
 {% extends "base.html" %}
-{% block content %}
+{% load fintrack_filters %}
+
+{% block full_content %}
+<div class="container pt-4 pb-5">
 <div class="stg-layout">
 
   <aside class="stg-sidebar">
@@ -34,39 +37,41 @@
       <div class="stg-panel-header">
         <div class="stg-panel-icon" style="background:#d1fae5;color:#059669;"><i class="bi bi-cash-stack"></i></div>
         <div>
-          <div class="stg-panel-title">Income</div>
-          <div class="stg-panel-sub">Track all your income sources.</div>
+          <div class="stg-panel-title">Income — {{ view_month_name }} {{ view_year }}</div>
+          <div class="stg-panel-sub">Track your monthly income sources.</div>
         </div>
         <button class="inc-btn-add ms-auto" onclick="document.getElementById('addIncomeModal').style.display='flex'">
           <i class="bi bi-plus-lg me-1"></i> Add Income
         </button>
       </div>
 
+      <!-- Month navigation -->
+      <div class="bgt-month-nav" style="margin-bottom:1rem;">
+        <a href="?month={{ prev_m }}&year={{ prev_y }}" class="bgt-month-btn"><i class="bi bi-chevron-left"></i></a>
+        <span class="bgt-month-label">{{ view_month_name }} {{ view_year }}</span>
+        <a href="?month={{ next_m }}&year={{ next_y }}" class="bgt-month-btn"><i class="bi bi-chevron-right"></i></a>
+      </div>
+
+      <!-- Source filter -->
       <form method="get" class="inc-filter-strip">
+        <input type="hidden" name="month" value="{{ view_month }}">
+        <input type="hidden" name="year" value="{{ view_year }}">
         <div class="inc-filter-group">
-          <label class="inc-filter-label">Date From</label>
-          <input type="date" name="date_from" class="inc-filter-input" value="{{ date_from }}">
-        </div>
-        <div class="inc-filter-group">
-          <label class="inc-filter-label">Date To</label>
-          <input type="date" name="date_to" class="inc-filter-input" value="{{ date_to }}">
-        </div>
-        <div class="inc-filter-group">
-          <label class="inc-filter-label">Source</label>
-          <input type="text" name="source" class="inc-filter-input" placeholder="Search source..." value="{{ source_q }}">
+          <label class="inc-filter-label">Filter by Source</label>
+          <input type="text" name="source" class="inc-filter-input" placeholder="e.g. Salary..." value="{{ source_q }}">
         </div>
         <button type="submit" class="inc-btn-apply"><i class="bi bi-funnel me-1"></i> Apply</button>
-        <a href="{% url 'settings_income' %}" class="inc-btn-reset"><i class="bi bi-x-lg me-1"></i> Reset</a>
+        <a href="?month={{ view_month }}&year={{ view_year }}" class="inc-btn-reset"><i class="bi bi-x-lg me-1"></i> Reset</a>
       </form>
 
       <div class="inc-summary-strip">
         <div class="inc-summary-card">
-          <div class="inc-summary-label">Total Records</div>
+          <div class="inc-summary-label">Entries</div>
           <div class="inc-summary-value">{{ total_records }}</div>
         </div>
         <div class="inc-summary-card">
-          <div class="inc-summary-label">Total Amount</div>
-          <div class="inc-summary-value teal">&#8377;{{ total_amount|floatformat:2 }}</div>
+          <div class="inc-summary-label">Total for {{ view_month_name }}</div>
+          <div class="inc-summary-value teal">{{ total_amount|inr }}</div>
         </div>
       </div>
 
@@ -81,7 +86,7 @@
               <td>{{ inc.date|date:"d M Y" }}</td>
               <td><span class="inc-source-badge inc-src-{{ inc.source|lower }}">{{ inc.source }}</span></td>
               <td class="text-muted" style="font-size:.88rem;">{{ inc.description|default:"—" }}</td>
-              <td class="inc-amount">&#8377;{{ inc.amount|floatformat:2 }}</td>
+              <td class="inc-amount">{{ inc.amount|inr }}</td>
               <td>
                 <button class="inc-action-btn edit inc-edit-btn"
                   data-pk="{{ inc.pk }}"
@@ -117,7 +122,7 @@
           <div class="inc-modal-body">
             <div class="stg-field">
               <label class="stg-label">Date</label>
-              <input type="date" name="date" class="stg-input" required>
+              <input type="date" name="date" class="stg-input" value="{{ default_date }}" required>
             </div>
             <div class="inc-modal-row">
               <div class="stg-field">
@@ -292,7 +297,7 @@
                 <span id="bgtStatusMsg"
                   class="{% if total_status == 'danger' %}bgt-over-msg{% elif total_status == 'warning' %}bgt-warn-msg{% else %}bgt-ok-msg{% endif %}">
                   {% if total_goal %}
-                    {% if total_status == 'danger' %}Over budget by &#8377;{{ total_over|floatformat:0 }}
+                    {% if total_status == 'danger' %}Over budget by {{ total_over|inr }}
                     {% elif total_status == 'warning' %}Approaching limit
                     {% else %}On track{% endif %}
                   {% endif %}
@@ -330,7 +335,7 @@
             </div>
             <div class="budget-spent-row">
               <span class="budget-spent-label">Spent</span>
-              <span class="budget-spent-val">&#8377;{{ row.spent|floatformat:2 }}</span>
+              <span class="budget-spent-val">{{ row.spent|inr }}</span>
             </div>
             {% if row.limit %}
             <div class="budget-bar-wrap">
@@ -339,10 +344,10 @@
                   style="width:{% if row.pct > 100 %}100{% else %}{{ row.pct|floatformat:0 }}{% endif %}%;"></div>
               </div>
               <div class="budget-bar-labels">
-                <span class="text-muted" style="font-size:.78rem;">Limit: &#8377;{{ row.limit|floatformat:0 }}</span>
+                <span class="text-muted" style="font-size:.78rem;">Limit: {{ row.limit|inr }}</span>
                 <span class="budget-remaining {% if row.remaining < 0 %}text-danger{% endif %}" style="font-size:.78rem;">
-                  {% if row.remaining >= 0 %}&#8377;{{ row.remaining|floatformat:0 }} left
-                  {% else %}+&#8377;{{ row.remaining|floatformat:0|slice:"1:" }}{% endif %}
+                  {% if row.remaining >= 0 %}{{ row.remaining|inr }} left
+                  {% else %}over by {{ row.remaining|inr|slice:"1:" }}{% endif %}
                 </span>
               </div>
               {% if row.status == 'danger' %}
@@ -385,7 +390,16 @@
       {% if success %}
       <div class="stg-alert success">
         <i class="bi bi-check-circle-fill me-2"></i> Imported {{ imported }} expense{{ imported|pluralize }} successfully.
+        {% if skipped %}— {{ skipped|length }} row{{ skipped|length|pluralize }} skipped.{% endif %}
       </div>
+      {% if skipped %}
+      <div class="stg-alert warning" style="margin-top:8px;">
+        <div style="font-weight:600;margin-bottom:6px;"><i class="bi bi-exclamation-triangle-fill me-2"></i>Skipped rows:</div>
+        <ul style="margin:0;padding-left:18px;font-size:0.85rem;">
+          {% for reason in skipped %}<li>{{ reason }}</li>{% endfor %}
+        </ul>
+      </div>
+      {% endif %}
       {% endif %}
       {% if error %}
       <div class="stg-alert error"><i class="bi bi-exclamation-circle-fill me-2"></i>{{ error }}</div>
@@ -450,6 +464,7 @@
 
   </div>
 </div>
+</div>
 
 <script>
   // File drop zone
@@ -502,12 +517,6 @@
 
     var totalSpent = parseFloat(card.dataset.spent) || 0;
 
-    function fmtAmt(v) {
-      if (v >= 100000) return '₹' + (v / 100000).toFixed(1) + 'L';
-      if (v >= 1000)   return '₹' + (v / 1000).toFixed(1) + 'K';
-      return '₹' + Math.round(v);
-    }
-
     function updateTotal() {
       var inputs = document.querySelectorAll('.cat-limit-input');
       var total = 0;
@@ -524,7 +533,7 @@
       var statusMsg= document.getElementById('bgtStatusMsg');
 
       if (total > 0) {
-        goalFmt.textContent = '/ ' + fmtAmt(total);
+        goalFmt.textContent = '/ ' + inrJS(total);
         barWrap.style.display = '';
         noGoal.style.display  = 'none';
 
@@ -538,7 +547,7 @@
         if (pct >= 100) {
           barFill.style.background = 'linear-gradient(90deg,#f87171,#ef4444)';
           statusMsg.className = 'bgt-over-msg';
-          statusMsg.textContent = 'Over budget by ₹' + Math.round(totalSpent - total).toLocaleString('en-IN');
+          statusMsg.textContent = 'Over budget by ' + inrJS(totalSpent - total);
         } else if (pct >= 80) {
           barFill.style.background = 'linear-gradient(90deg,#fbbf24,#f59e0b)';
           statusMsg.className = 'bgt-warn-msg';
@@ -566,4 +575,4 @@
     updateTotal();
   })();
 </script>
-{% endblock %}
+{% endblock full_content %}

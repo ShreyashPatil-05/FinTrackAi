@@ -8,15 +8,15 @@ MoSCoW is a prioritization framework used in software development to decide what
 
 Core features. Without these, FinTrack does not work as a product.
 
-| Feature | Reason |
-|---|---|
-| User registration and login | No auth means no data separation between users |
-| Expense add, edit, delete | The entire purpose of the app |
-| Dashboard with balance and totals | Users need one view to see where they stand |
-| Category-based expense tracking | Numbers without context are meaningless |
-| Income entry | Balance requires both income and expenses |
-| Session management and logout | Basic security requirement |
-| Responsive UI | Must work on desktop and mobile |
+| Feature | Status | Notes |
+|---|---|---|
+| User registration and login | ✅ Done | `accounts/views.py` — `register_view`, `login_view` |
+| Expense add, edit, delete | ✅ Done | `expenses/views.py` — full CRUD including bulk delete |
+| Dashboard with balance and totals | ✅ Done | `dashboard/views.py` — income, expenses, balance all shown |
+| Category-based expense tracking | ✅ Done | Default 7 categories + custom categories per user |
+| Income entry | ✅ Done | `Income` model with source choices; add/edit/delete in settings |
+| Session management and logout | ✅ Done | `accounts/views.py` — `logout_view` |
+| Responsive UI | ✅ Done | CSS-based responsive layout across all pages |
 
 ---
 
@@ -24,16 +24,16 @@ Core features. Without these, FinTrack does not work as a product.
 
 Important features that add real value but the app still functions without them.
 
-| Feature | Reason |
-|---|---|
-| Monthly budget limits per category | Moves the app from observation to control |
-| Savings goals with progress tracking | Gives users a target to work toward |
-| Subscription tracker with auto-billing | Recurring costs are the most overlooked spending |
-| CSV import | Users have data elsewhere and need a way to bring it in |
-| CSV export | Users should own and be able to extract their data |
-| Budget alerts on dashboard | Warns users before they overspend, not after |
-| Dark mode | Expected in any modern web app |
-| Month-end spending forecast | Helps users act before the month ends |
+| Feature | Status | Notes |
+|---|---|---|
+| Monthly budget limits per category | ✅ Done | `CategoryBudget` model; per-category, per-month limits with progress tracking |
+| Savings goals with progress tracking | ✅ Done | `SavingsGoal` + `SavingsContribution` models; detail view, add-funds flow |
+| Subscription tracker with auto-billing | ✅ Done | `Subscription` model; weekly/monthly/yearly cycles; auto-advances billing date on overdue subs |
+| CSV import | ✅ Done | `settings_upload` view; preview + validate + import with skip-log |
+| CSV export | ✅ Done | `export_data` view; exports expenses, income, savings goals, subscriptions |
+| Budget alerts on dashboard | ✅ Done | `budget_alerts` injected into dashboard context at 80% and 100% of limit |
+| Dark mode | ✅ Done | Toggle implemented in UI |
+| Month-end spending forecast | ✅ Done | `forecast` dict computed in `dashboard_view` based on daily average |
 
 ---
 
@@ -41,18 +41,18 @@ Important features that add real value but the app still functions without them.
 
 Nice-to-have features that improve polish and experience.
 
-| Feature | Reason |
-|---|---|
-| Google OAuth login | Reduces signup friction |
-| Email verification on registration | Adds security without blocking core usage |
-| Onboarding tour for new users | Reduces confusion on first login |
-| Indian currency formatting | Better UX for the target audience |
-| Contribution history on savings goals | Adds transparency to the savings flow |
-| Copy budget from last month | Saves time for repeat users |
-| Financial health score | Motivational indicator based on savings rate |
-| Pagination with per-page selector | Performance improvement for power users |
-| Profile avatar upload | Personalization |
-| Account deletion | Data privacy control |
+| Feature | Status | Notes |
+|---|---|---|
+| Google OAuth login | ✅ Done | `django-allauth` — `allauth.socialaccount.providers.google`; PKCE enabled; "Continue with Google" button on login/register page |
+| Email verification on registration | ✅ Done | `EmailVerificationToken` model; user set `is_active=False` until link is clicked |
+| Onboarding tour for new users | ✅ Done | `UserProfile.onboarding_complete` flag; `tour_complete` API endpoint |
+| Indian currency formatting (₹) | ✅ Done | ₹ formatting used throughout dashboard, budgets, forecasts |
+| Contribution history on savings goals | ✅ Done | `savings_goal_detail` view shows last 3 contributions + total count |
+| Copy budget from last month | ✅ Done | `budget_copy_last_month` view copies all limits from previous month |
+| Financial health score | ✅ Done | Savings rate → Excellent / Good / Fair / Over Budget label + colour + tip |
+| Pagination with per-page selector | ✅ Done | `expense_list` — paginated with 10/20/50 per-page selector |
+| Profile avatar upload | ✅ Done | `UserProfile.avatar` field; upload and remove via profile page |
+| Account deletion | ✅ Done | `delete_account` view — logs out and deletes the user row |
 
 ---
 
@@ -62,9 +62,9 @@ Out of scope for this version. Identified as future upgrades.
 
 | Feature | Reason |
 |---|---|
-| Real bank API integration | Requires RBI-approved fintech licensing in India |
+| Real bank API integration | Requires RBI-approved fintech licensing in India — a mock webhook + simulator (`mock_bank_simulator.py`) is included instead, demonstrating the architecture |
 | Mobile app (Android or iOS) | Needs React Native or Flutter — separate project |
-| Celery and Redis for background tasks | Infrastructure overhead not justified at this scale |
+| Celery and Redis for background tasks | Infrastructure overhead not justified at this scale; subscription auto-advance runs synchronously on page load |
 | Multi-user household budgeting | Requires shared data model redesign |
 | AI-based spending insights | Needs ML pipeline and sufficient historical data |
 | PostgreSQL migration | SQLite is sufficient for single-user deployment |
@@ -79,4 +79,4 @@ The interviewer is checking whether you understand prioritization and trade-offs
 
 A good answer sounds like this:
 
-"I used MoSCoW to decide what to build first. The Must Haves were the auth system and expense tracking — without those the app has no purpose. The Should Haves like budget limits and savings goals were built next because they move the app from just showing data to actually helping users make decisions. Features like Google OAuth and email verification were Could Haves — they improve security and UX but the app works without them. Things like a real bank API or mobile app were Won't Haves for this version because they require infrastructure and licensing that are out of scope for an academic project, but I have documented them as the natural next step."
+"I used MoSCoW to decide what to build first. The Must Haves were the auth system and expense tracking — without those the app has no purpose. The Should Haves like budget limits, savings goals, subscriptions, and CSV import/export were built next because they move the app from just showing data to actually helping users make decisions. For the Could Haves I implemented all ten — including email verification, Google OAuth via django-allauth with PKCE, an onboarding tour, avatar upload, account deletion, contribution history, copy budget from last month, a financial health score, pagination with a per-page selector, and Indian rupee formatting. Things like a real bank API or mobile app were Won't Haves for this version — they require infrastructure and licensing out of scope for an academic project, but I documented them as natural next steps, and I demonstrated the bank integration architecture using a mock webhook and simulator."

@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.db.models import Sum
 from datetime import date
@@ -114,6 +115,7 @@ def add_expense(request):
 
 
 
+@never_cache
 @login_required(login_url='login')
 def edit_expense(request, pk):
     expense = get_object_or_404(Expense, pk=pk, user=request.user)

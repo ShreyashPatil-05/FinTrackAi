@@ -187,3 +187,6 @@ AXES_COOLOFF_TIME = 0.25         # locked for 15 minutes
 AXES_LOCKOUT_PARAMETERS = ['ip_address']  # lock by IP
 AXES_RESET_ON_SUCCESS = True     # reset count on successful login
 AXES_ENABLE_ADMIN = True
+
+# ── Mock Bank Webhook ─────────────────────────────────────
+BANK_WEBHOOK_SECRET = os.environ.get('BANK_WEBHOOK_SECRET', 'fintrack-mock-bank-secret-2026')

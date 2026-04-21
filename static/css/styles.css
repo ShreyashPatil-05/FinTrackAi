@@ -1937,6 +1937,21 @@ select.expense-input {
     color: #1e293b;
 }
 
+.el-bank-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: #ede9fe;
+    color: #6d28d9;
+    border-radius: 5px;
+    padding: 1px 6px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+[data-theme="dark"] .el-bank-badge { background: rgba(109,40,217,0.2); color: #a78bfa; }
+
 .el-amount {
     font-size: 0.9rem;
     font-weight: 700;

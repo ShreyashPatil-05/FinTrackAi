@@ -7,6 +7,7 @@ from collections import defaultdict
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.db.models import Sum
 
@@ -384,6 +385,7 @@ def export_data(request):
         'today': today,
     })
 
+@never_cache
 @login_required(login_url='login')
 def profile(request):
     from .models import UserProfile
@@ -534,6 +536,7 @@ def income_add(request):
 
 
 
+@never_cache
 @login_required(login_url='login')
 def income_edit(request, pk):
     income = get_object_or_404(Income, pk=pk, user=request.user)
@@ -601,6 +604,7 @@ def settings_categories(request):
 # Settings — Budget
 # ---------------------------
 
+@never_cache
 @login_required(login_url='login')
 def settings_budget(request):
     from expenses.forms import get_category_choices
@@ -958,6 +962,7 @@ def savings_goal_add(request):
     return redirect('savings_goals')
 
 
+@never_cache
 @login_required(login_url='login')
 def savings_goal_edit(request, pk):
     goal = get_object_or_404(SavingsGoal, pk=pk, user=request.user)

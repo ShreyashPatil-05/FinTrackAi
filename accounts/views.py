@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+from django.views.decorators.cache import never_cache
 from .forms import MyUserCreationForm, LoginForm, ChangePasswordForm
 from .models import EmailVerificationToken
 
@@ -73,6 +74,7 @@ def verify_email(request, token):
 # ----------------------------
 # LOGIN VIEW
 # ----------------------------
+@never_cache
 def login_view(request):
 
     form = LoginForm(request.POST or None)
@@ -114,6 +116,7 @@ def logout_view(request):
 # ----------------------------
 # CHANGE PASSWORD VIEW
 # ----------------------------
+@never_cache
 def change_password_view(request):
     form = ChangePasswordForm(request.POST or None)
 

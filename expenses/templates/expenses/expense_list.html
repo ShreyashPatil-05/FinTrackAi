@@ -173,6 +173,7 @@
                         <div class="el-title-cell">
                             <span class="el-cat-dot el-cat-{{ expense.category|lower }}"></span>
                             <span class="el-title">{{ expense.title }}</span>
+                            {% if expense.source == 'bank' %}<span class="el-bank-badge">🏦 Auto</span>{% endif %}
                         </div>
                     </td>
                     <td>
@@ -225,7 +226,10 @@
                 <span class="el-badge el-badge-{{ expense.category|lower }}">{{ expense.category }}</span>
                 <span class="el-amount">{{ expense.amount|inr }}</span>
             </div>
-            <div class="el-expense-card-title">{{ expense.title }}</div>
+            <div class="el-expense-card-title">
+                {{ expense.title }}
+                {% if expense.source == 'bank' %}<span class="el-bank-badge">🏦 Auto</span>{% endif %}
+            </div>
             <div class="el-expense-card-date">
                 <i class="bi bi-calendar3 me-1"></i>{{ expense.date }}
             </div>

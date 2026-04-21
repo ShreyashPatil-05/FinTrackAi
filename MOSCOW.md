@@ -2,7 +2,7 @@
 
 MoSCoW is a prioritization framework used in software development to decide what gets built and when. Each feature is placed into one of four categories based on its importance to the product.
 
----
+
 
 ## Must Have
 
@@ -18,7 +18,7 @@ Core features. Without these, FinTrack does not work as a product.
 | Session management and logout | ✅ Done | `accounts/views.py` — `logout_view` |
 | Responsive UI | ✅ Done | CSS-based responsive layout across all pages |
 
----
+
 
 ## Should Have
 
@@ -35,7 +35,7 @@ Important features that add real value but the app still functions without them.
 | Dark mode | ✅ Done | Toggle implemented in UI |
 | Month-end spending forecast | ✅ Done | `forecast` dict computed in `dashboard_view` based on daily average |
 
----
+
 
 ## Could Have
 
@@ -54,7 +54,7 @@ Nice-to-have features that improve polish and experience.
 | Profile avatar upload | ✅ Done | `UserProfile.avatar` field; upload and remove via profile page |
 | Account deletion | ✅ Done | `delete_account` view — logs out and deletes the user row |
 
----
+
 
 ## Won't Have
 
@@ -71,12 +71,3 @@ Out of scope for this version. Identified as future upgrades.
 | Payment gateway integration | Out of scope for a tracking app |
 | Real-time notifications | Requires WebSockets or push notification service |
 
----
-
-## How to explain this in an interview
-
-The interviewer is checking whether you understand prioritization and trade-offs.
-
-A good answer sounds like this:
-
-"I used MoSCoW to decide what to build first. The Must Haves were the auth system and expense tracking — without those the app has no purpose. The Should Haves like budget limits, savings goals, subscriptions, and CSV import/export were built next because they move the app from just showing data to actually helping users make decisions. For the Could Haves I implemented all ten — including email verification, Google OAuth via django-allauth with PKCE, an onboarding tour, avatar upload, account deletion, contribution history, copy budget from last month, a financial health score, pagination with a per-page selector, and Indian rupee formatting. Things like a real bank API or mobile app were Won't Haves for this version — they require infrastructure and licensing out of scope for an academic project, but I documented them as natural next steps, and I demonstrated the bank integration architecture using a mock webhook and simulator."

@@ -3,8 +3,38 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.views.decorators.cache import never_cache
+from django.core.cache import cache
+from django.conf import settings
 from .forms import MyUserCreationForm, LoginForm, ChangePasswordForm
 from .models import EmailVerificationToken
+
+
+def _get_client_ip(request):
+    x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded:
+        return x_forwarded.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', '')
+
+
+def _verify_recaptcha(response_token):
+    """Verify reCAPTCHA token with Google. Returns True if valid."""
+    from django.conf import settings
+    import urllib.request
+    import urllib.parse
+    if not settings.RECAPTCHA_SECRET_KEY:
+        return True  # skip verification if key not configured (dev fallback)
+    try:
+        data = urllib.parse.urlencode({
+            'secret':   settings.RECAPTCHA_SECRET_KEY,
+            'response': response_token,
+        }).encode()
+        req = urllib.request.Request('https://www.google.com/recaptcha/api/siteverify', data=data)
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            import json
+            result = json.loads(resp.read())
+            return result.get('success', False)
+    except Exception:
+        return False
 
 
 # ----------------------------
@@ -14,10 +44,34 @@ def register_view(request):
     form = MyUserCreationForm(request.POST or None)
 
     if request.method == "POST":
+        # Rate limit: max 3 registrations per IP per hour
+        ip = _get_client_ip(request)
+        cache_key = f'register_attempts_{ip}'
+        attempts = cache.get(cache_key, 0)
+
+        if attempts >= 3:
+            messages.error(request, 'Too many registration attempts. Please try again in an hour.')
+            return render(request, "accounts/auth.html", {
+                "form": form, "page_title": "Create Account",
+                "button_text": "Register", "page_type": "register", "hide_auth_nav": True,
+            })
+
         if form.is_valid():
+            # Verify reCAPTCHA
+            recaptcha_response = request.POST.get('g-recaptcha-response', '')
+            if not _verify_recaptcha(recaptcha_response):
+                messages.error(request, 'Please complete the reCAPTCHA verification.')
+                return render(request, "accounts/auth.html", {
+                    "form": form, "page_title": "Create Account",
+                    "button_text": "Register", "page_type": "register", "hide_auth_nav": True,
+                })
+
             user = form.save(commit=False)
             user.is_active = False  # inactive until email verified
             user.save()
+
+            # Increment attempt counter (expires in 1 hour)
+            cache.set(cache_key, attempts + 1, timeout=3600)
 
             # Create verification token and send email
             token_obj = EmailVerificationToken.objects.create(user=user)
@@ -34,6 +88,7 @@ def register_view(request):
         "button_text": "Register",
         "page_type": "register",
         "hide_auth_nav": True,
+        "recaptcha_site_key": settings.RECAPTCHA_SITE_KEY,
     })
 
 
@@ -61,6 +116,15 @@ def _send_verification_email(request, user, token):
 def verify_email(request, token):
     try:
         token_obj = EmailVerificationToken.objects.get(token=token)
+
+        # Check token is not older than 24 hours
+        from django.utils import timezone
+        from datetime import timedelta
+        if timezone.now() - token_obj.created_at > timedelta(hours=24):
+            token_obj.delete()
+            messages.error(request, 'Verification link has expired. Please register again.')
+            return redirect('register')
+
         user = token_obj.user
         user.is_active = True
         user.save(update_fields=['is_active'])
@@ -109,7 +173,8 @@ def login_view(request):
 # LOGOUT VIEW
 # ----------------------------
 def logout_view(request):
-    logout(request)
+    if request.method == 'POST':
+        logout(request)
     return redirect("login")
 
 
@@ -135,7 +200,8 @@ def change_password_view(request):
                     messages.success(request, "Password changed successfully. Please log in.")
                     return redirect("login")
             except User.DoesNotExist:
-                messages.error(request, "No account found with that username.")
+                # Same message as wrong password — prevents username enumeration
+                messages.error(request, "Current password is incorrect.")
 
     context = {
         "form": form,

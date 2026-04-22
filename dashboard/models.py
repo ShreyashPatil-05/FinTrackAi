@@ -87,6 +87,9 @@ class SavingsGoal(models.Model):
 
     @property
     def saved(self):
+        # Use prefetched contributions if available (avoids N+1 queries)
+        if hasattr(self, '_prefetched_objects_cache') and 'contributions' in self._prefetched_objects_cache:
+            return float(sum(c.amount for c in self._prefetched_objects_cache['contributions']))
         from django.db.models import Sum
         total = self.contributions.aggregate(Sum('amount'))['amount__sum']
         return float(total or 0)
@@ -169,17 +172,15 @@ class Subscription(models.Model):
             return
         d = self.next_billing
         while d < today:
-            # Record an expense on the billing date, always ensuring category is Subscription
-            obj, created = Expense.objects.get_or_create(
+            # Record an expense on the billing date — use source='bank' equivalent
+            # Use update_or_create keyed on title+date+source to avoid collision with manual entries
+            Expense.objects.get_or_create(
                 user=self.user,
                 title=f"{self.name} (Subscription)",
                 date=d,
-                amount=self.amount,
-                defaults={'category': 'Subscription'},
+                source='subscription',
+                defaults={'category': 'Subscription', 'amount': self.amount},
             )
-            if not created and obj.category != 'Subscription':
-                obj.category = 'Subscription'
-                obj.save(update_fields=['category'])
             if self.cycle == 'weekly':
                 d += relativedelta(weeks=1)
             elif self.cycle == 'yearly':
@@ -188,3 +189,46 @@ class Subscription(models.Model):
                 d += relativedelta(months=1)
         self.next_billing = d
         self.save(update_fields=['next_billing'])
+
+
+class WebhookToken(models.Model):
+    user       = models.OneToOneField(User, on_delete=models.CASCADE, related_name='webhook_token')
+    token_hash = models.CharField(max_length=64, unique=True)  # SHA-256 hex digest
+
+    def save(self, *args, **kwargs):
+        if not self.token_hash:
+            import secrets
+            raw = secrets.token_urlsafe(32)
+            self._raw_token = raw  # available once, not stored
+            self.token_hash = self._hash(raw)
+        super().save(*args, **kwargs)
+
+    def regenerate(self):
+        import secrets
+        raw = secrets.token_urlsafe(32)
+        self._raw_token = raw
+        self.token_hash = self._hash(raw)
+        self.save(update_fields=['token_hash'])
+        return raw
+
+    @staticmethod
+    def _hash(raw_token):
+        import hashlib
+        return hashlib.sha256(raw_token.encode()).hexdigest()
+
+    @classmethod
+    def verify(cls, raw_token):
+        """Look up a WebhookToken by raw token value. Returns the instance or None."""
+        import hashlib, hmac
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        try:
+            # Use constant-time comparison via filter then hmac to prevent timing attacks
+            obj = cls.objects.select_related('user').get(token_hash=token_hash)
+            if hmac.compare_digest(obj.token_hash, token_hash):
+                return obj
+        except cls.DoesNotExist:
+            pass
+        return None
+
+    def __str__(self):
+        return f"Webhook token for {self.user.username}"

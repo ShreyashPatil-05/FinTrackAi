@@ -1,25 +1,27 @@
 """
 Mock Bank Webhook — receives simulated bank transactions and creates Expenses.
+The webhook token is bound to a specific user — no cross-user posting possible.
 """
 import json
 from datetime import date
 
-from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django.contrib.auth.models import User
 
 from .models import Expense, DEFAULT_CATEGORIES
+from dashboard.models import WebhookToken
 
 
 @csrf_exempt
 @require_POST
 def bank_webhook(request):
-    # Validate secret token
+    # Validate token and resolve the bound user
     token = request.headers.get('X-Bank-Token', '')
-    if token != settings.BANK_WEBHOOK_SECRET:
+    token_obj = WebhookToken.verify(token)
+    if token_obj is None:
         return JsonResponse({'error': 'Unauthorized'}, status=401)
+    user = token_obj.user
 
     # Parse payload
     try:
@@ -28,8 +30,7 @@ def bank_webhook(request):
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
     # Validate required fields
-    required = ['user_id', 'merchant', 'amount', 'category']
-    for field in required:
+    for field in ['merchant', 'amount', 'category']:
         if field not in data:
             return JsonResponse({'error': f'Missing field: {field}'}, status=400)
 
@@ -39,12 +40,6 @@ def bank_webhook(request):
             raise ValueError
     except (ValueError, TypeError):
         return JsonResponse({'error': 'Invalid amount'}, status=400)
-
-    # Find user
-    try:
-        user = User.objects.get(pk=data['user_id'])
-    except User.DoesNotExist:
-        return JsonResponse({'error': 'User not found'}, status=404)
 
     # Sanitize category
     category = str(data['category']).strip().title()

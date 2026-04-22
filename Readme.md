@@ -32,17 +32,22 @@ A full-stack web application built with Django that helps users track expenses, 
 
 ### Mock Bank API
 - Webhook endpoint at POST /api/webhook/bank/
+- Per-user webhook token stored in DB — token is bound to a specific user, no cross-user posting possible
+- Token can be regenerated via Django admin (WebhookToken model)
 - Standalone simulator script that sends fake transactions every 8 seconds
 - Auto-imported expenses tagged with a bank badge in the expense list
-- Token-based authentication on the webhook
 
 ### Auth and Security
-- Register / Login / Logout
+- Register / Login / Logout (logout via POST only — CSRF safe)
 - Google OAuth 2.0 sign-in
-- Email verification on registration (Gmail SMTP)
+- Email verification on registration (Gmail SMTP) with 24-hour token expiry
 - Brute force protection — account locked after 5 failed login attempts
-- Change password requires current password verification
+- Change password requires current password — same error message whether username exists or not (prevents enumeration)
+- Account deletion requires password confirmation
+- Avatar upload validates file type via magic bytes and enforces 2MB size limit
+- Per-user webhook tokens bound to a specific user — no cross-user posting
 - Session-based authentication with login_required route protection
+- never_cache on all edit/form views — prevents stale data on browser back
 - SECRET_KEY loaded from environment variable
 
 ### Data
@@ -122,17 +127,20 @@ Visit http://127.0.0.1:8000
 
 ## Mock Bank API — Demo
 
-The mock bank simulator sends fake transactions to your app automatically, simulating how a real bank would push transaction data.
+The mock bank simulator sends fake transactions to your app automatically, simulating how a real bank would push transaction data. Each user has their own webhook token stored in the database — the token is bound to that user so no cross-user posting is possible.
 
-### Step 1 — Find your user ID
+### Step 1 — Create a webhook token for your user
 - Go to http://127.0.0.1:8000/admin/
-- Click Users — find your account and note the ID in the URL (usually 1)
+- Dashboard > Webhook Tokens > Add
+- Select your user and save
+- Copy the generated token
 
 ### Step 2 — Update the simulator
-Open mock_bank_simulator.py and set your user ID:
+Open mock_bank_simulator.py and set your token:
 ```python
-USER_ID = 1  # change this to your actual user ID
+WEBHOOK_SECRET = 'paste-your-token-here'
 ```
+Remove or ignore the `USER_ID` line — the token identifies the user automatically.
 
 ### Step 3 — Open two terminals
 
@@ -188,7 +196,6 @@ python manage.py test dashboard
 | SECRET_KEY | Django secret key for cryptographic signing |
 | EMAIL_HOST_USER | Gmail address used to send verification emails |
 | EMAIL_HOST_PASSWORD | Gmail App Password (not your real Gmail password) |
-| BANK_WEBHOOK_SECRET | Secret token for the mock bank webhook |
 
 ---
 

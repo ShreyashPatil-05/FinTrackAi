@@ -156,22 +156,38 @@
 
 <!-- Delete confirmation modal -->
 <div id="deleteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
-    <div class="prof-card" style="max-width:400px;width:90%;margin:0;border:2px solid #dc2626;text-align:center;">
-        <h5 style="font-weight:700;color:#dc2626;margin-bottom:8px;">Are you sure?</h5>
-        <p style="font-size:0.88rem;color:var(--text-muted);margin-bottom:20px;">
-            This will permanently delete <strong>{{ request.user.username }}</strong>'s account and all associated data.
-        </p>
-        <div style="display:flex;gap:10px;justify-content:center;">
-            <button type="button" class="prof-btn-save" onclick="document.getElementById('deleteModal').style.display='none'">
-                Cancel
-            </button>
-            <form method="post" action="{% url 'delete_account' %}">
-                {% csrf_token %}
-                <button type="submit" class="prof-btn-delete">
+    <div style="background:var(--card,#fff);border-radius:16px;padding:28px 28px 24px;max-width:400px;width:90%;margin:0;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+        <div style="text-align:center;margin-bottom:16px;">
+            <div style="width:48px;height:48px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+                <i class="bi bi-trash3-fill" style="color:#dc2626;font-size:1.2rem;"></i>
+            </div>
+            <h5 style="font-weight:700;color:var(--text,#1e293b);margin-bottom:6px;font-size:1.1rem;">Delete Account</h5>
+            <p style="font-size:0.85rem;color:#64748b;margin:0;line-height:1.5;">
+                This will permanently delete <strong style="color:var(--text,#1e293b);">{{ request.user.username }}</strong>'s account and all data. This cannot be undone.
+            </p>
+        </div>
+        <form method="post" action="{% url 'delete_account' %}">
+            {% csrf_token %}
+            <div style="margin-bottom:16px;">
+                <label style="font-size:0.78rem;font-weight:600;color:#64748b;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">
+                    Confirm your password
+                </label>
+                <input type="password" name="confirm_password" class="prof-input"
+                       placeholder="Enter your password" required
+                       style="width:100%;font-size:0.9rem;">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <button type="button"
+                        onclick="document.getElementById('deleteModal').style.display='none'"
+                        style="padding:10px;border-radius:10px;border:1.5px solid #e2e8f0;background:var(--card,#fff);color:var(--text,#1e293b);font-weight:600;font-size:0.88rem;cursor:pointer;">
+                    Cancel
+                </button>
+                <button type="submit"
+                        style="padding:10px;border-radius:10px;border:none;background:#dc2626;color:#fff;font-weight:600;font-size:0.88rem;cursor:pointer;">
                     <i class="bi bi-trash3-fill me-1"></i> Delete
                 </button>
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
 </div>
 

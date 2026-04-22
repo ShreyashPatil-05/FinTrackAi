@@ -52,7 +52,11 @@ Nice-to-have features that improve polish and experience.
 | Financial health score | ✅ Done | Savings rate → Excellent / Good / Fair / Over Budget label + colour + tip |
 | Pagination with per-page selector | ✅ Done | `expense_list` — paginated with 10/20/50 per-page selector |
 | Profile avatar upload | ✅ Done | `UserProfile.avatar` field; upload and remove via profile page |
-| Account deletion | ✅ Done | `delete_account` view — logs out and deletes the user row |
+| Account deletion | ✅ Done | `delete_account` view — requires password confirmation, logs out and deletes the user row |
+| Per-user webhook token | ✅ Done | `WebhookToken` model — token bound to user, regeneratable, no cross-user posting |
+| Avatar file validation | ✅ Done | Magic bytes check for real image type + 2MB size limit |
+| Email token expiry | ✅ Done | Verification tokens expire after 24 hours |
+| never_cache on edit views | ✅ Done | Prevents stale form data on browser back button |
 
 
 
@@ -62,7 +66,7 @@ Out of scope for this version. Identified as future upgrades.
 
 | Feature | Reason |
 |---|---|
-| Real bank API integration | Requires RBI-approved fintech licensing in India — a mock webhook + simulator (`mock_bank_simulator.py`) is included instead, demonstrating the architecture |
+| Real bank API integration | Requires RBI-approved fintech licensing in India — a per-user webhook token system + simulator (`mock_bank_simulator.py`) is included instead, demonstrating the full architecture with proper token binding |
 | Mobile app (Android or iOS) | Needs React Native or Flutter — separate project |
 | Celery and Redis for background tasks | Infrastructure overhead not justified at this scale; subscription auto-advance runs synchronously on page load |
 | Multi-user household budgeting | Requires shared data model redesign |

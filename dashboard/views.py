@@ -3,7 +3,6 @@ import io
 import json
 from datetime import datetime, date
 from calendar import month_name
-from collections import defaultdict
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -257,13 +256,14 @@ def dashboard_view(request):
         'cat_amounts_json': json.dumps(cat_amounts),
         'daily_labels_json': json.dumps(daily_labels),
         'daily_amounts_json': json.dumps(daily_amounts),
-        'recent_expenses': period_expenses.order_by('-date')[:5],
-        'recent_placeholders': range(max(0, 5 - period_expenses.order_by('-date')[:5].count())),
         'count': period_expenses.count(),
         'show_tour': show_tour,
         'forecast': forecast,
         'budget_alerts': budget_alerts,
     }
+    recent = list(period_expenses.order_by('-date')[:5])
+    context['recent_expenses'] = recent
+    context['recent_placeholders'] = range(max(0, 5 - len(recent)))
     return render(request, 'dashboard/dashboard.html', context)
 
 
@@ -398,12 +398,32 @@ def profile(request):
 
         if action == 'avatar':
             if 'avatar' in request.FILES:
+                avatar_file = request.FILES['avatar']
+
+                # Validate file size (max 2MB)
+                if avatar_file.size > 2 * 1024 * 1024:
+                    messages.error(request, 'Image too large. Maximum size is 2MB.')
+                    return redirect('profile')
+
+                # Validate file type by reading magic bytes
+                header = avatar_file.read(12)
+                avatar_file.seek(0)
+                allowed_signatures = [
+                    b'\xff\xd8\xff',          # JPEG
+                    b'\x89PNG\r\n\x1a\n',     # PNG
+                    b'GIF87a', b'GIF89a',     # GIF
+                    b'RIFF',                  # WebP (starts with RIFF)
+                ]
+                if not any(header.startswith(sig) for sig in allowed_signatures):
+                    messages.error(request, 'Invalid file type. Only JPEG, PNG, GIF and WebP are allowed.')
+                    return redirect('profile')
+
                 # Delete old avatar file if exists
                 if profile_obj.avatar:
                     import os
                     if os.path.isfile(profile_obj.avatar.path):
                         os.remove(profile_obj.avatar.path)
-                profile_obj.avatar = request.FILES['avatar']
+                profile_obj.avatar = avatar_file
                 profile_obj.save(update_fields=['avatar'])
                 success = True
         elif action == 'remove_avatar':
@@ -415,9 +435,16 @@ def profile(request):
                 profile_obj.save(update_fields=['avatar'])
                 success = True
         else:
+            new_username = request.POST.get("username", "").strip()
+            if not new_username:
+                messages.error(request, 'Username cannot be empty.')
+                return redirect('profile')
+            if User.objects.exclude(pk=user.pk).filter(username=new_username).exists():
+                messages.error(request, f'Username "{new_username}" is already taken.')
+                return redirect('profile')
             user.first_name = request.POST.get("first_name", "").strip()
             user.last_name  = request.POST.get("last_name", "").strip()
-            user.username   = request.POST.get("username", "").strip()
+            user.username   = new_username
             user.email      = request.POST.get("email", "").strip()
             user.save()
             success = True
@@ -431,6 +458,10 @@ def profile(request):
 @login_required(login_url='login')
 def delete_account(request):
     if request.method == 'POST':
+        password = request.POST.get('confirm_password', '')
+        if not request.user.check_password(password):
+            messages.error(request, 'Incorrect password. Account not deleted.')
+            return redirect('profile')
         user = request.user
         from django.contrib.auth import logout
         logout(request)
@@ -453,7 +484,6 @@ def settings(request):
 # Settings — Income
 # ---------------------------
 
-@login_required(login_url='login')
 @login_required(login_url='login')
 def settings_income(request):
     from calendar import month_name as _month_name
@@ -518,20 +548,25 @@ def settings_income(request):
 def income_add(request):
     if request.method == 'POST':
         try:
+            from decimal import Decimal, InvalidOperation
             inc_date = request.POST['date']
+            amount = Decimal(request.POST['amount'])
+            if amount <= 0:
+                messages.error(request, 'Amount must be greater than zero.')
+                return redirect('settings_income')
             Income.objects.create(
                 user=request.user,
                 date=inc_date,
                 source=request.POST.get('source', 'Other'),
                 description=request.POST.get('description', '').strip(),
-                amount=float(request.POST['amount']),
+                amount=amount,
             )
             messages.success(request, 'Income added.')
             from datetime import datetime
             d = datetime.strptime(inc_date, '%Y-%m-%d')
             return redirect(f"/settings/income/?month={d.month}&year={d.year}")
-        except Exception:
-            messages.error(request, 'Failed to add income.')
+        except (InvalidOperation, KeyError):
+            messages.error(request, 'Failed to add income. Check the amount entered.')
     return redirect('settings_income')
 
 
@@ -542,14 +577,19 @@ def income_edit(request, pk):
     income = get_object_or_404(Income, pk=pk, user=request.user)
     if request.method == 'POST':
         try:
+            from decimal import Decimal, InvalidOperation
+            amount = Decimal(request.POST['amount'])
+            if amount <= 0:
+                messages.error(request, 'Amount must be greater than zero.')
+                return redirect('settings_income')
             income.date        = request.POST['date']
             income.source      = request.POST.get('source', income.source)
             income.description = request.POST.get('description', '').strip()
-            income.amount      = float(request.POST['amount'])
+            income.amount      = amount
             income.save()
             messages.success(request, 'Income updated.')
-        except Exception:
-            messages.error(request, 'Could not update income.')
+        except (InvalidOperation, KeyError):
+            messages.error(request, 'Could not update income. Check the amount entered.')
     return redirect('settings_income')
 
 
@@ -936,7 +976,7 @@ def _fmt_amount(v):
 
 @login_required(login_url='login')
 def savings_goals(request):
-    goals = SavingsGoal.objects.filter(user=request.user)
+    goals = SavingsGoal.objects.filter(user=request.user).prefetch_related('contributions')
     total_saved = sum(float(g.saved) for g in goals)
     return render(request, 'dashboard/savings_goals.html', {
         'goals': goals,
@@ -1052,7 +1092,8 @@ def budget_copy_last_month(request):
         )
         if not prev_budgets.exists():
             messages.error(request, 'No budget limits found for the previous month.')
-            return redirect(f'/settings/budget/?month={month}&year={year}')
+            from django.urls import reverse
+            return redirect(f"{reverse('settings_budget')}?month={month}&year={year}")
 
         copied = 0
         for b in prev_budgets:
@@ -1063,4 +1104,5 @@ def budget_copy_last_month(request):
             copied += 1
 
         messages.success(request, f'Copied {copied} budget limit{"s" if copied != 1 else ""} from last month.')
-    return redirect(f'/settings/budget/?month={month}&year={year}')
+    from django.urls import reverse
+    return redirect(f"{reverse('settings_budget')}?month={month}&year={year}")

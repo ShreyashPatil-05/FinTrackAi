@@ -69,6 +69,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
     'axes.middleware.AxesMiddleware',
+    'fintrack.middleware.ContentSecurityPolicyMiddleware',
 ]
 
 ROOT_URLCONF = 'fintrack.urls'
@@ -190,3 +191,7 @@ AXES_ENABLE_ADMIN = True
 
 # ── Mock Bank Webhook ─────────────────────────────────────
 BANK_WEBHOOK_SECRET = os.environ.get('BANK_WEBHOOK_SECRET', 'fintrack-mock-bank-secret-2026')
+
+# ── Google reCAPTCHA v2 ───────────────────────────────────
+RECAPTCHA_SITE_KEY   = os.environ.get('RECAPTCHA_SITE_KEY', '')
+RECAPTCHA_SECRET_KEY = os.environ.get('RECAPTCHA_SECRET_KEY', '')

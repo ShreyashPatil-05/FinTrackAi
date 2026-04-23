@@ -6,8 +6,10 @@ from .settings_base import *
 import os
 
 DEBUG = False
-_allowed = os.environ.get('ALLOWED_HOSTS', '')
-ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',') if h.strip()]
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
+
+# Railway terminates SSL at the proxy — trust the forwarded protocol header
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # ── Security headers ──────────────────────────────────────
 SECURE_SSL_REDIRECT        = True

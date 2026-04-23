@@ -21,19 +21,19 @@ urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
 
-    # Authentication  (register, login, logout, change-password)
+    # Authentication (register, login, logout, change-password)
     path('accounts/', include('accounts.urls')),
 
     # Google OAuth via django-allauth
     path('social/', include('allauth.urls')),
 
-    # Expenses  (list, add, edit, delete, bulk-delete)
+    # Expenses (list, add, edit, delete, bulk-delete)
     path('expenses/', include('expenses.urls')),
 
     # Mock bank webhook
     path('api/webhook/bank/', bank_webhook, name='bank_webhook'),
 
-    # Core app  (dashboard, settings, savings, subscriptions, profile, export)
+    # Core app (dashboard, settings, savings, subscriptions, profile, export)
     path('', include('dashboard.urls')),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + [

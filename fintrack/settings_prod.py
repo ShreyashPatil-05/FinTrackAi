@@ -6,7 +6,8 @@ from .settings_base import *
 import os
 
 DEBUG = False
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
+_allowed = os.environ.get('ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',') if h.strip()]
 
 # ── Security headers ──────────────────────────────────────
 SECURE_SSL_REDIRECT        = True

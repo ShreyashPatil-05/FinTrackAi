@@ -6,9 +6,12 @@ from calendar import month_name
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.db.models import Sum
+from django.http import JsonResponse, HttpResponseNotAllowed
+from django.urls import reverse
 
 from expenses.models import Expense, DEFAULT_CATEGORIES
 from .models import CustomCategory, Income, Subscription, CategoryBudget, SavingsGoal, SavingsContribution
@@ -280,12 +283,10 @@ def _last_day(year, month):
 def tour_complete(request):
     if request.method == 'POST':
         from .models import UserProfile
-        from django.http import JsonResponse
         profile_obj, _ = UserProfile.objects.get_or_create(user=request.user)
         profile_obj.onboarding_complete = True
         profile_obj.save(update_fields=['onboarding_complete'])
         return JsonResponse({'ok': True})
-    from django.http import HttpResponseNotAllowed
     return HttpResponseNotAllowed(['POST'])
 
 
@@ -1092,7 +1093,6 @@ def budget_copy_last_month(request):
         )
         if not prev_budgets.exists():
             messages.error(request, 'No budget limits found for the previous month.')
-            from django.urls import reverse
             return redirect(f"{reverse('settings_budget')}?month={month}&year={year}")
 
         copied = 0
@@ -1104,5 +1104,4 @@ def budget_copy_last_month(request):
             copied += 1
 
         messages.success(request, f'Copied {copied} budget limit{"s" if copied != 1 else ""} from last month.')
-    from django.urls import reverse
     return redirect(f"{reverse('settings_budget')}?month={month}&year={year}")

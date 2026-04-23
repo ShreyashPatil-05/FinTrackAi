@@ -1,12 +1,11 @@
 [variables]
-DJANGO_SETTINGS_MODULE = "fintrack.settings_prod"
 SECRET_KEY = "placeholder-build-only-not-used-at-runtime"
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
 
 [phases.build]
-cmds = ["python manage.py collectstatic --noinput"]
+cmds = ["python manage.py collectstatic --noinput --settings=fintrack.settings_prod"]
 
 [start]
 cmd = "gunicorn fintrack.wsgi:application --workers 4 --bind 0.0.0.0:$PORT"

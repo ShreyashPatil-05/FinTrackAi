@@ -12,7 +12,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
     {% if page_type == "register" and recaptcha_site_key %}
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit" async defer></script>
+    <script>
+      function onRecaptchaLoad() {
+        var el = document.querySelector('.g-recaptcha');
+        if (el) {
+          grecaptcha.render(el, { sitekey: '{{ recaptcha_site_key }}' });
+        }
+      }
+    </script>
     {% endif %}
     <script>
       // Apply theme before paint to avoid flash
@@ -112,12 +120,29 @@
                                 <i class="bi bi-exclamation-circle me-1"></i>{{ field.errors|striptags }}
                             </div>
                         {% endif %}
+                        {% if page_type == "register" and field.html_name == "password1" %}
+                        <!-- Password strength meter -->
+                        <div id="pw-strength-wrap" style="margin-top:8px;display:none;">
+                            <div style="display:flex;gap:4px;margin-bottom:5px;">
+                                <div class="pw-bar" id="pw-bar-1"></div>
+                                <div class="pw-bar" id="pw-bar-2"></div>
+                                <div class="pw-bar" id="pw-bar-3"></div>
+                                <div class="pw-bar" id="pw-bar-4"></div>
+                            </div>
+                            <div id="pw-strength-label" style="font-size:12px;font-weight:500;"></div>
+                            <ul id="pw-hints" style="margin:5px 0 0 0;padding-left:16px;font-size:12px;color:var(--text-muted,#888);list-style:none;padding:0;"></ul>
+                        </div>
+                        {% endif %}
+                        {% if page_type == "register" and field.html_name == "password2" %}
+                        <!-- Password match indicator -->
+                        <div id="pw-match-msg" style="font-size:12px;margin-top:5px;display:none;"></div>
+                        {% endif %}
                     </div>
                 {% endfor %}
 
                 {% if page_type == "register" and recaptcha_site_key %}
                 <div style="display:flex;justify-content:center;margin-bottom:12px;">
-                    <div class="g-recaptcha" data-sitekey="{{ recaptcha_site_key }}"></div>
+                    <div class="g-recaptcha"></div>
                 </div>
                 {% endif %}
 
@@ -204,6 +229,89 @@
                 : '<i class="bi bi-eye"></i>';
         });
     });
+
+    // ── Password strength meter (register only) ──────────────
+    (function() {
+        var pw1 = document.getElementById('id_password1');
+        var pw2 = document.getElementById('id_password2');
+        if (!pw1) return;
+
+        var wrap      = document.getElementById('pw-strength-wrap');
+        var label     = document.getElementById('pw-strength-label');
+        var hints     = document.getElementById('pw-hints');
+        var matchMsg  = document.getElementById('pw-match-msg');
+        var bars      = [1,2,3,4].map(function(i){ return document.getElementById('pw-bar-'+i); });
+
+        // Inject bar styles
+        var style = document.createElement('style');
+        style.textContent = [
+            '.pw-bar{flex:1;height:4px;border-radius:4px;background:#e2e8f0;transition:background .25s;}',
+            '[data-theme="dark"] .pw-bar{background:#334155;}',
+        ].join('');
+        document.head.appendChild(style);
+
+        var COLORS = ['#ef4444','#f97316','#eab308','#22c55e'];
+        var LABELS = ['Weak','Fair','Good','Strong'];
+
+        function score(val) {
+            var s = 0;
+            if (val.length >= 8)  s++;
+            if (/[A-Z]/.test(val)) s++;
+            if (/[0-9]/.test(val)) s++;
+            if (/[^A-Za-z0-9]/.test(val)) s++;
+            return s; // 0-4
+        }
+
+        function getHints(val) {
+            var h = [];
+            if (val.length < 8)          h.push('At least 8 characters');
+            if (!/[A-Z]/.test(val))      h.push('Add an uppercase letter');
+            if (!/[0-9]/.test(val))      h.push('Add a number');
+            if (!/[^A-Za-z0-9]/.test(val)) h.push('Add a special character (!@#$...)');
+            return h;
+        }
+
+        pw1.addEventListener('input', function() {
+            var val = pw1.value;
+            if (!val) { wrap.style.display = 'none'; return; }
+            wrap.style.display = 'block';
+
+            var s = score(val);
+            var idx = Math.max(s - 1, 0); // 0-3 index
+            var color = COLORS[idx];
+
+            bars.forEach(function(bar, i) {
+                bar.style.background = i < s ? color : '';
+                bar.style.background = i < s ? color : (document.documentElement.getAttribute('data-theme') === 'dark' ? '#334155' : '#e2e8f0');
+            });
+
+            label.textContent = LABELS[idx];
+            label.style.color = color;
+
+            var hintList = getHints(val);
+            hints.innerHTML = hintList.map(function(h) {
+                return '<li style="display:flex;align-items:center;gap:5px;margin-bottom:2px;"><i class="bi bi-x-circle" style="color:#ef4444;font-size:11px;"></i>' + h + '</li>';
+            }).join('');
+
+            // also re-check match
+            if (pw2 && pw2.value) checkMatch();
+        });
+
+        function checkMatch() {
+            if (!pw2 || !matchMsg) return;
+            if (!pw2.value) { matchMsg.style.display = 'none'; return; }
+            matchMsg.style.display = 'block';
+            if (pw1.value === pw2.value) {
+                matchMsg.innerHTML = '<i class="bi bi-check-circle" style="color:#22c55e;"></i> Passwords match';
+                matchMsg.style.color = '#22c55e';
+            } else {
+                matchMsg.innerHTML = '<i class="bi bi-x-circle" style="color:#ef4444;"></i> Passwords do not match';
+                matchMsg.style.color = '#ef4444';
+            }
+        }
+
+        if (pw2) pw2.addEventListener('input', checkMatch);
+    })();
 </script>
 </body>
 </html>

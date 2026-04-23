@@ -6,7 +6,14 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fintrack.settings')
+    # Load .env before Django reads DJANGO_SETTINGS_MODULE
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fintrack.settings_dev')
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

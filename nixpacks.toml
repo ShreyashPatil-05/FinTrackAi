@@ -2,10 +2,10 @@
 SECRET_KEY = "placeholder-build-only-not-used-at-runtime"
 
 [phases.install]
-cmds = ["pip install -r requirements.txt"]
+cmds = ["/opt/venv/bin/pip install -r requirements.txt"]
 
 [phases.build]
-cmds = ["python manage.py collectstatic --noinput --settings=fintrack.settings_prod"]
+cmds = ["/opt/venv/bin/python manage.py collectstatic --noinput --settings=fintrack.settings_prod"]
 
 [start]
 cmd = "python manage.py migrate --noinput && gunicorn fintrack.wsgi:application --workers 2 --threads 2 --timeout 60 --keep-alive 5 --bind 0.0.0.0:$PORT"

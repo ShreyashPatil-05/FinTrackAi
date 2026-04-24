@@ -16,3 +16,6 @@ env/
 
 # VS Code
 .vscode/
+
+# Testing/Debug scripts
+test_sendgrid.py

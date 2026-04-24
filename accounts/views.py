@@ -160,6 +160,7 @@ def _send_verification_email(request, user, token):
     """
     from django.core.mail import send_mail
     from django.urls import reverse
+    from django.conf import settings
     import threading
 
     verify_url = request.build_absolute_uri(
@@ -176,7 +177,12 @@ def _send_verification_email(request, user, token):
 
     def _send():
         try:
+            logger.info(f"Attempting to send email to {user.email}")
+            logger.info(f"EMAIL_HOST: {settings.EMAIL_HOST}")
+            logger.info(f"EMAIL_PORT: {settings.EMAIL_PORT}")
+            logger.info(f"EMAIL_HOST_USER: {settings.EMAIL_HOST_USER}")
             send_mail(subject, message, None, [user.email], fail_silently=False)
+            logger.info(f"Email sent successfully to {user.email}")
         except Exception as e:
             logger.error(f"Background email send failed for {user.username}: {e}", exc_info=True)
 

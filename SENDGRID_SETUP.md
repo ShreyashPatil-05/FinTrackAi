@@ -27,7 +27,31 @@ Railway blocks direct SMTP connections to Gmail for security reasons. SendGrid i
    - You'll only see it once!
    - Save it temporarily in a text file
 
-### 3. Configure Railway Environment Variables
+### 3. Verify Sender Identity (REQUIRED!)
+**Important:** SendGrid requires sender verification before you can send emails.
+
+1. In SendGrid dashboard, click **Settings** (left sidebar)
+2. Click **Sender Authentication**
+3. Find **"Verify a Single Sender"** section
+4. Click **Create New Sender**
+5. Fill out the form:
+   ```
+   From Name: FinTrack
+   From Email Address: shreyashpatil655@gmail.com
+   Reply To: shreyashpatil655@gmail.com
+   Company Address: (your address)
+   City: (your city)
+   State: (your state)
+   Zip Code: (your zip)
+   Country: India (or your country)
+   Nickname: FinTrack App
+   ```
+6. Click **Create**
+7. Check your email inbox (`shreyashpatil655@gmail.com`)
+8. Click **"Verify Single Sender"** button in the email
+9. You'll see "Sender verified successfully!"
+
+### 4. Configure Railway Environment Variables
 1. Go to https://railway.app
 2. Open your FinTrack project
 3. Click on your Web service
@@ -39,13 +63,15 @@ EMAIL_HOST=smtp.sendgrid.net
 EMAIL_PORT=587
 EMAIL_HOST_USER=apikey
 EMAIL_HOST_PASSWORD=<paste-your-sendgrid-api-key>
+DEFAULT_FROM_EMAIL=FinTrack <shreyashpatil655@gmail.com>
 ```
 
 **Important**: 
 - `EMAIL_HOST_USER` should be literally the word `apikey`
 - `EMAIL_HOST_PASSWORD` should be your actual SendGrid API key (the `SG.abc123...` string)
+- `DEFAULT_FROM_EMAIL` must match the verified sender email from Step 3
 
-### 4. Deploy Changes
+### 5. Deploy Changes
 1. Commit the code changes:
    ```bash
    git add .
@@ -55,7 +81,7 @@ EMAIL_HOST_PASSWORD=<paste-your-sendgrid-api-key>
 
 2. Railway will automatically redeploy with the new settings
 
-### 5. Test Email Verification
+### 6. Test Email Verification
 1. Go to your Railway app URL
 2. Register a new user
 3. Check the email inbox (the one you registered with)

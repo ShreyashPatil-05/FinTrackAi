@@ -6,7 +6,7 @@ from .settings_base import *
 import os
 
 DEBUG = False
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') + ['healthcheck.railway.app']
 
 # Railway terminates SSL at the proxy — trust the forwarded protocol header
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

@@ -401,37 +401,37 @@ def profile(request):
             if 'avatar' in request.FILES:
                 avatar_file = request.FILES['avatar']
 
-                # Validate file size (max 2MB)
                 if avatar_file.size > 2 * 1024 * 1024:
                     messages.error(request, 'Image too large. Maximum size is 2MB.')
                     return redirect('profile')
 
-                # Validate file type by reading magic bytes
                 header = avatar_file.read(12)
                 avatar_file.seek(0)
                 allowed_signatures = [
-                    b'\xff\xd8\xff',          # JPEG
-                    b'\x89PNG\r\n\x1a\n',     # PNG
-                    b'GIF87a', b'GIF89a',     # GIF
-                    b'RIFF',                  # WebP (starts with RIFF)
+                    b'\xff\xd8\xff',
+                    b'\x89PNG\r\n\x1a\n',
+                    b'GIF87a', b'GIF89a',
+                    b'RIFF',
                 ]
                 if not any(header.startswith(sig) for sig in allowed_signatures):
                     messages.error(request, 'Invalid file type. Only JPEG, PNG, GIF and WebP are allowed.')
                     return redirect('profile')
 
-                # Delete old avatar file if exists
+                # Delete old avatar safely (works for both local and S3)
                 if profile_obj.avatar:
-                    import os
-                    if os.path.isfile(profile_obj.avatar.path):
-                        os.remove(profile_obj.avatar.path)
+                    try:
+                        profile_obj.avatar.delete(save=False)
+                    except Exception:
+                        pass
                 profile_obj.avatar = avatar_file
                 profile_obj.save(update_fields=['avatar'])
                 success = True
         elif action == 'remove_avatar':
             if profile_obj.avatar:
-                import os
-                if os.path.isfile(profile_obj.avatar.path):
-                    os.remove(profile_obj.avatar.path)
+                try:
+                    profile_obj.avatar.delete(save=False)
+                except Exception:
+                    pass
                 profile_obj.avatar = None
                 profile_obj.save(update_fields=['avatar'])
                 success = True

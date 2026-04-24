@@ -17,5 +17,4 @@ DATABASES = {
 }
 
 # Print emails to console instead of sending — useful when testing locally
-# Comment this out if you want real emails during dev
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

@@ -8,4 +8,4 @@ cmds = ["pip install -r requirements.txt"]
 cmds = ["python manage.py collectstatic --noinput --settings=fintrack.settings_prod"]
 
 [start]
-cmd = "gunicorn fintrack.wsgi:application --workers 4 --bind 0.0.0.0:$PORT"
+cmd = "python manage.py migrate --noinput && gunicorn fintrack.wsgi:application --workers 2 --threads 2 --timeout 60 --keep-alive 5 --bind 0.0.0.0:$PORT"

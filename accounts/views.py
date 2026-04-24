@@ -147,8 +147,8 @@ def _send_verification_email(request, user, token):
     """
     Send email verification link to user in a background thread.
     
-    Uses threading to prevent blocking the request/response cycle and
-    avoid gunicorn worker timeout issues.
+    Uses SendGrid HTTP API (not SMTP) to avoid Railway port blocking.
+    Falls back to SMTP for local development.
     
     Args:
         request: Django HttpRequest (for building absolute URL)
@@ -158,7 +158,6 @@ def _send_verification_email(request, user, token):
     Returns:
         None (email sent asynchronously)
     """
-    from django.core.mail import send_mail
     from django.urls import reverse
     from django.conf import settings
     import threading
@@ -178,11 +177,34 @@ def _send_verification_email(request, user, token):
     def _send():
         try:
             logger.info(f"Attempting to send email to {user.email}")
-            logger.info(f"EMAIL_HOST: {settings.EMAIL_HOST}")
-            logger.info(f"EMAIL_PORT: {settings.EMAIL_PORT}")
-            logger.info(f"EMAIL_HOST_USER: {settings.EMAIL_HOST_USER}")
-            send_mail(subject, message, None, [user.email], fail_silently=False)
-            logger.info(f"Email sent successfully to {user.email}")
+            
+            # Use SendGrid HTTP API if configured (production)
+            sendgrid_api_key = settings.EMAIL_HOST_PASSWORD
+            if sendgrid_api_key and sendgrid_api_key.startswith('SG.'):
+                logger.info("Using SendGrid HTTP API")
+                from sendgrid import SendGridAPIClient
+                from sendgrid.helpers.mail import Mail, Email, To, Content
+                
+                from_email = Email(settings.DEFAULT_FROM_EMAIL)
+                to_email = To(user.email)
+                content = Content("text/plain", message)
+                mail = Mail(from_email, to_email, subject, content)
+                
+                sg = SendGridAPIClient(sendgrid_api_key)
+                response = sg.client.mail.send.post(request_body=mail.get())
+                
+                logger.info(f"SendGrid API response: {response.status_code}")
+                if response.status_code in [200, 201, 202]:
+                    logger.info(f"Email sent successfully to {user.email}")
+                else:
+                    logger.error(f"SendGrid API error: {response.body}")
+            else:
+                # Fall back to SMTP for local development
+                logger.info("Using SMTP (local development)")
+                from django.core.mail import send_mail
+                send_mail(subject, message, None, [user.email], fail_silently=False)
+                logger.info(f"Email sent successfully to {user.email}")
+                
         except Exception as e:
             logger.error(f"Background email send failed for {user.username}: {e}", exc_info=True)
 

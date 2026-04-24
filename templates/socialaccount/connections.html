@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Connected Accounts - FinTrack{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h3 class="mb-4">Connected Accounts</h3>
+
+                    {% if form.accounts %}
+                        <p class="text-muted mb-4">
+                            You can manage your connected social accounts here.
+                        </p>
+
+                        <form method="post" action="{% url 'socialaccount_connections' %}">
+                            {% csrf_token %}
+
+                            {% if form.non_field_errors %}
+                                <div class="alert alert-danger">
+                                    {{ form.non_field_errors }}
+                                </div>
+                            {% endif %}
+
+                            <div class="list-group mb-4">
+                                {% for account in form.accounts %}
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <i class="bi bi-google text-danger"></i>
+                                                <strong>Google</strong>
+                                                <br>
+                                                <small class="text-muted">{{ account.account.extra_data.email }}</small>
+                                            </div>
+                                            <div>
+                                                <input type="radio" 
+                                                       name="{{ account.name }}" 
+                                                       value="{{ account.id }}"
+                                                       id="id_{{ account.name }}_{{ account.id }}">
+                                                <label for="id_{{ account.name }}_{{ account.id }}" class="ms-2">
+                                                    Remove
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash"></i> Remove Selected Account
+                            </button>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            You currently have no social accounts connected.
+                        </div>
+                    {% endif %}
+
+                    <hr class="my-4">
+
+                    <div class="text-center">
+                        <a href="{% url 'settings' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Settings
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

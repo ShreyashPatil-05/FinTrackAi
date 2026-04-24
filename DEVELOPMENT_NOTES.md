@@ -198,7 +198,8 @@ EMAIL_HOST_PASSWORD=your-sendgrid-api-key
 ### Google OAuth
 1. Add Client ID/Secret in Django admin
 2. Configure redirect URIs in Google Cloud Console:
-   - `https://web-production-95045.up.railway.app/social/google/login/callback/`
+   - Production: `https://web-production-95045.up.railway.app/social/google/login/callback/`
+   - Local dev: `http://localhost:8000/social/google/login/callback/`
 
 ### Webhook Token
 1. Go to Django admin → Dashboard → Webhook Tokens

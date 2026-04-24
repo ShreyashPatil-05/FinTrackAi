@@ -164,7 +164,15 @@ ALLOWED_HOSTS=web-production-95045.up.railway.app
 SECRET_KEY=your-secret-key
 RECAPTCHA_SITE_KEY=your-site-key
 RECAPTCHA_SECRET_KEY=your-secret-key
+
+# Email (SendGrid for production)
+EMAIL_HOST=smtp.sendgrid.net
+EMAIL_PORT=587
+EMAIL_HOST_USER=apikey
+EMAIL_HOST_PASSWORD=your-sendgrid-api-key
 ```
+
+**Note:** See `SENDGRID_SETUP.md` for detailed email configuration instructions.
 
 **Files:**
 - `railway.toml` - Deployment configuration

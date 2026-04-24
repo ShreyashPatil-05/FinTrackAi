@@ -113,19 +113,12 @@ SOCIALACCOUNT_PROVIDERS = {
         'SCOPE': ['profile', 'email'],
         'AUTH_PARAMS': {'access_type': 'online'},
         'OAUTH_PKCE_ENABLED': True,
-        'APP': {
-            'client_id': os.environ.get('GOOGLE_CLIENT_ID', ''),
-            'secret': os.environ.get('GOOGLE_CLIENT_SECRET', ''),
-        }
     }
 }
 
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 SOCIALACCOUNT_LOGIN_ON_GET = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
-ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_UNIQUE_EMAIL = True
 
 # ── Email (Gmail SMTP) ────────────────────────────────────
 EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'

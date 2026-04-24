@@ -8,7 +8,7 @@ import django.core.validators
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('dashboard', '0014_create_site'),
+        ('dashboard', '0013_webhook_token_hashed'),
     ]
 
     operations = [

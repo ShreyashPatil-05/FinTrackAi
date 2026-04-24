@@ -3,11 +3,13 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_http_methods
 from django.core.cache import cache
 from django.core.mail import send_mail
 from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
+from django.db import transaction, IntegrityError
 import logging
 import threading
 import os
@@ -90,6 +92,7 @@ def register_view(request):
         - reCAPTCHA verification
         - Email verification token generation
         - Background email sending
+        - Transaction safety to prevent race conditions
         
     Args:
         request: Django HttpRequest object
@@ -125,15 +128,37 @@ def register_view(request):
                         "recaptcha_site_key": settings.RECAPTCHA_SITE_KEY,
                     })
 
-                user = form.save(commit=False)
-                user.is_active = False
-                user.save()
+                # Use transaction to prevent race conditions
+                try:
+                    with transaction.atomic():
+                        user = form.save(commit=False)
+                        user.is_active = False
+                        user.save()
 
-                cache.set(cache_key, attempts + 1, timeout=3600)
-
-                token_obj = EmailVerificationToken.objects.create(user=user)
-                _send_verification_email(request, user, token_obj.token)
-                messages.success(request, "Account created! Check your email to verify your account.")
+                        # Delete any existing tokens for this user (shouldn't exist, but safety)
+                        EmailVerificationToken.objects.filter(user=user).delete()
+                        
+                        # Create new verification token
+                        token_obj = EmailVerificationToken.objects.create(user=user)
+                        
+                        # Send verification email
+                        _send_verification_email(request, user, token_obj.token)
+                        
+                        # Increment rate limit counter
+                        cache.set(cache_key, attempts + 1, timeout=3600)
+                        
+                        messages.success(request, "Account created! Check your email to verify your account.")
+                        logger.info(f"User registered: {user.username} ({user.email})")
+                        
+                except IntegrityError as e:
+                    logger.error(f"Registration integrity error: {e}")
+                    messages.error(request, 'Registration failed. This email or username may already be in use.')
+                    return render(request, "accounts/auth.html", {
+                        "form": form, "page_title": "Create Account",
+                        "button_text": "Register", "page_type": "register", "hide_auth_nav": True,
+                        "recaptcha_site_key": settings.RECAPTCHA_SITE_KEY,
+                    })
+                
                 return redirect("login")
             else:
                 messages.error(request, "Registration failed. Please fix the errors.")
@@ -228,6 +253,8 @@ def verify_email(request, token):
     """
     Verify user's email address using the token from the verification link.
     
+    Rate limited to 10 attempts per IP per hour to prevent brute force attacks.
+    
     Validates:
         - Token exists in database
         - Token is less than 24 hours old
@@ -243,22 +270,45 @@ def verify_email(request, token):
     Returns:
         HttpResponse: Redirect to login with success/error message
     """
+    # Rate limit: max 10 verification attempts per IP per hour
+    ip = _get_client_ip(request)
+    cache_key = f'verify_attempts_{ip}'
+    attempts = cache.get(cache_key, 0)
+    
+    if attempts >= 10:
+        messages.error(request, 'Too many verification attempts. Please try again in an hour.')
+        logger.warning(f"Rate limit exceeded for verification from IP: {ip}")
+        return redirect('login')
+    
     try:
         token_obj = EmailVerificationToken.objects.get(token=token)
 
-        # Check token is not older than 24 hours
-        if timezone.now() - token_obj.created_at > timedelta(hours=24):
+        # Check if token is expired
+        if token_obj.is_expired():
             token_obj.delete()
-            messages.error(request, 'Verification link has expired. Please register again.')
-            return redirect('register')
+            messages.error(request, 'Verification link has expired. Please use the resend verification option.')
+            return redirect('resend_verification')
 
+        # Activate user
         user = token_obj.user
         user.is_active = True
         user.save(update_fields=['is_active'])
+        
+        # Delete token after successful verification
         token_obj.delete()
+        
         messages.success(request, "Email verified! You can now log in.")
+        logger.info(f"Email verified for user: {user.username}")
+        
     except EmailVerificationToken.DoesNotExist:
+        # Increment rate limit counter
+        cache.set(cache_key, attempts + 1, timeout=3600)
         messages.error(request, "Invalid or expired verification link.")
+        logger.warning(f"Invalid verification token attempted: {token}")
+    except Exception as e:
+        logger.error(f"Error during email verification: {e}", exc_info=True)
+        messages.error(request, "An error occurred during verification. Please try again.")
+    
     return redirect("login")
 
 
@@ -378,3 +428,77 @@ def change_password_view(request):
         "hide_auth_nav": True,
     }
     return render(request, "accounts/auth.html", context)
+
+
+
+# ----------------------------
+# RESEND VERIFICATION VIEW
+# ----------------------------
+@require_http_methods(["GET", "POST"])
+def resend_verification(request):
+    """
+    Resend email verification link to users who didn't receive it.
+    
+    Features:
+        - Rate limiting (3 resends per email per hour)
+        - Doesn't reveal if email exists (security)
+        - Creates new token and deletes old one
+        
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Resend form or redirect to login on success
+    """
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip().lower()
+        
+        if not email:
+            messages.error(request, 'Please enter your email address.')
+            return render(request, 'accounts/resend_verification.html')
+        
+        try:
+            # Find inactive user with this email
+            user = User.objects.get(email=email, is_active=False)
+            
+            # Rate limit: max 3 resends per email per hour
+            cache_key = f'resend_verification_{user.id}'
+            attempts = cache.get(cache_key, 0)
+            
+            if attempts >= 3:
+                # Don't reveal if email exists - same message
+                messages.info(request, 'If that email is registered and unverified, a verification link has been sent.')
+                logger.warning(f"Resend rate limit exceeded for user: {user.username}")
+                return redirect('login')
+            
+            # Delete old token and create new one
+            with transaction.atomic():
+                EmailVerificationToken.objects.filter(user=user).delete()
+                token_obj = EmailVerificationToken.objects.create(user=user)
+                
+                # Send verification email
+                _send_verification_email(request, user, token_obj.token)
+                
+                # Increment rate limit counter
+                cache.set(cache_key, attempts + 1, timeout=3600)
+                
+                logger.info(f"Verification email resent to: {user.username}")
+            
+            # Don't reveal if email exists - same message for security
+            messages.success(request, 'If that email is registered and unverified, a verification link has been sent. Check your inbox.')
+            
+        except User.DoesNotExist:
+            # Don't reveal if email exists - same message for security
+            messages.success(request, 'If that email is registered and unverified, a verification link has been sent. Check your inbox.')
+            logger.info(f"Resend verification attempted for non-existent email: {email}")
+        except Exception as e:
+            logger.error(f"Error in resend_verification: {e}", exc_info=True)
+            messages.error(request, 'An error occurred. Please try again.')
+        
+        return redirect('login')
+    
+    # GET request - show form
+    return render(request, 'accounts/resend_verification.html', {
+        'page_title': 'Resend Verification',
+        'hide_auth_nav': True,
+    })

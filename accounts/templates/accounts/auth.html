@@ -160,7 +160,11 @@
             <div class="auth-switch">
                 {% if page_type == "login" %}
                     Don't have an account? <a href="{% url 'register' %}">Sign up free</a>
-                    {% if messages %}<br><small class="mt-1 d-block"><a href="{% url 'change_password' %}">Forgot password?</a></small>{% endif %}
+                    <br><small class="mt-1 d-block">
+                        <a href="{% url 'change_password' %}">Forgot password?</a>
+                        <span class="mx-1">|</span>
+                        <a href="{% url 'resend_verification' %}">Resend verification</a>
+                    </small>
                 {% elif page_type == "change_password" %}
                     Remembered it? <a href="{% url 'login' %}">Back to login</a>
                 {% else %}

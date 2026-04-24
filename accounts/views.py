@@ -14,6 +14,18 @@ logger = logging.getLogger(__name__)
 
 
 def _get_client_ip(request):
+    """
+    Extract the client's IP address from the request.
+    
+    Handles X-Forwarded-For header for proxied requests (Railway, Heroku, etc.)
+    Takes the first IP in the chain if multiple proxies are present.
+    
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        str: Client IP address
+    """
     x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded:
         return x_forwarded.split(',')[0].strip()
@@ -21,7 +33,18 @@ def _get_client_ip(request):
 
 
 def _verify_recaptcha(response_token):
-    """Verify reCAPTCHA token with Google. Returns True if valid."""
+    """
+    Verify reCAPTCHA token with Google's API.
+    
+    Args:
+        response_token: reCAPTCHA response token from client
+        
+    Returns:
+        bool: True if verification successful, False otherwise
+        
+    Note:
+        Returns True if RECAPTCHA_SECRET_KEY is not configured (dev fallback)
+    """
     from django.conf import settings
     import urllib.request
     import urllib.parse
@@ -45,6 +68,21 @@ def _verify_recaptcha(response_token):
 # REGISTER VIEW
 # ----------------------------
 def register_view(request):
+    """
+    Handle user registration with email verification and reCAPTCHA.
+    
+    Features:
+        - Rate limiting (3 attempts per IP per hour)
+        - reCAPTCHA verification
+        - Email verification token generation
+        - Background email sending
+        
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Registration form or redirect to login on success
+    """
     form = MyUserCreationForm(request.POST or None)
 
     if request.method == "POST":
@@ -106,6 +144,20 @@ def register_view(request):
 
 
 def _send_verification_email(request, user, token):
+    """
+    Send email verification link to user in a background thread.
+    
+    Uses threading to prevent blocking the request/response cycle and
+    avoid gunicorn worker timeout issues.
+    
+    Args:
+        request: Django HttpRequest (for building absolute URL)
+        user: Django User object
+        token: UUID verification token
+        
+    Returns:
+        None (email sent asynchronously)
+    """
     from django.core.mail import send_mail
     from django.urls import reverse
     import threading
@@ -133,6 +185,24 @@ def _send_verification_email(request, user, token):
 
 
 def verify_email(request, token):
+    """
+    Verify user's email address using the token from the verification link.
+    
+    Validates:
+        - Token exists in database
+        - Token is less than 24 hours old
+        
+    On success:
+        - Activates user account
+        - Deletes verification token
+        
+    Args:
+        request: Django HttpRequest object
+        token: UUID token from URL parameter
+        
+    Returns:
+        HttpResponse: Redirect to login with success/error message
+    """
     try:
         token_obj = EmailVerificationToken.objects.get(token=token)
 
@@ -159,6 +229,20 @@ def verify_email(request, token):
 # ----------------------------
 @never_cache
 def login_view(request):
+    """
+    Handle user authentication and login.
+    
+    Features:
+        - Username/password authentication
+        - Session creation on success
+        - Redirect to dashboard after login
+        
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Login form or redirect to dashboard on success
+    """
 
     form = LoginForm(request.POST or None)
 
@@ -192,6 +276,17 @@ def login_view(request):
 # LOGOUT VIEW
 # ----------------------------
 def logout_view(request):
+    """
+    Log out the current user and destroy their session.
+    
+    Only accepts POST requests for security (prevents CSRF logout attacks).
+    
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Redirect to login page
+    """
     if request.method == 'POST':
         logout(request)
     return redirect("login")
@@ -202,6 +297,21 @@ def logout_view(request):
 # ----------------------------
 @never_cache
 def change_password_view(request):
+    """
+    Allow users to change their password with current password verification.
+    
+    Security features:
+        - Requires current password verification
+        - Same error message for wrong password and non-existent user
+          (prevents username enumeration)
+        - Forces re-login after password change
+        
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Password change form or redirect to login on success
+    """
     form = ChangePasswordForm(request.POST or None)
 
     if request.method == "POST":

@@ -1,8 +1,16 @@
+"""
+Dashboard Views
+
+Main dashboard, settings, profile, subscriptions, savings goals,
+and data export functionality.
+"""
 import csv
 import io
 import json
+import logging
 from datetime import datetime, date
 from calendar import month_name
+from typing import Dict, Optional
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -10,18 +18,39 @@ from django.contrib.auth.models import User
 from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.db.models import Sum
-from django.http import JsonResponse, HttpResponseNotAllowed
+from django.http import JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponse
 from django.urls import reverse
 
 from expenses.models import Expense, DEFAULT_CATEGORIES
 from .models import CustomCategory, Income, Subscription, CategoryBudget, SavingsGoal, SavingsContribution
+from .utils import (
+    get_month_navigation,
+    get_last_day_of_month,
+    format_currency,
+    get_date_range,
+    calculate_savings_rate,
+    get_available_years,
+)
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------
 # Landing Page
 # ---------------------------
 
-def landing(request):
+def landing(request: HttpRequest) -> HttpResponse:
+    """
+    Display landing page for non-authenticated users.
+    
+    Redirects authenticated users to dashboard.
+    
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Landing page or redirect to dashboard
+    """
     if request.user.is_authenticated:
         return redirect("dashboard")
     return render(request, "landing.html")
@@ -31,33 +60,60 @@ def landing(request):
 # Dashboard
 # ---------------------------
 
+def _advance_overdue_subscriptions(user) -> None:
+    """
+    Advance billing dates for all overdue subscriptions.
+    
+    Args:
+        user: Django User object
+    """
+    from datetime import date as _today_date
+    _today = _today_date.today()
+    for _sub in Subscription.objects.filter(
+        user=user, status='active', next_billing__lt=_today
+    ):
+        try:
+            _sub.advance_billing_date()
+        except (ValueError, AttributeError) as e:
+            logger.warning(f"Failed to advance subscription {_sub.pk}: {e}")
+
+
 @login_required(login_url='login')
-def dashboard_view(request):
+def dashboard_view(request: HttpRequest) -> HttpResponse:
+    """
+    Main dashboard view showing financial overview and analytics.
+    
+    Features:
+        - Month/year navigation with custom date ranges
+        - Income vs expenses tracking
+        - Savings rate calculation with financial health indicator
+        - Category breakdown (top 5)
+        - Daily spending chart
+        - Spending forecast for current month
+        - Budget alerts for overspending
+        - Recent expenses list
+        - Interactive onboarding tour
+        
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Rendered dashboard template
+    """
     from .models import UserProfile
     profile_obj, _ = UserProfile.objects.get_or_create(user=request.user)
 
     # Advance overdue subscriptions on every dashboard load
-    from datetime import date as _today_date
-    _today = _today_date.today()
-    for _sub in Subscription.objects.filter(
-        user=request.user, status='active', next_billing__lt=_today
-    ):
-        try:
-            _sub.advance_billing_date()
-        except Exception:
-            pass
+    _advance_overdue_subscriptions(request.user)
+    
     show_tour = not profile_obj.onboarding_complete
 
     now = datetime.now()
 
     # ── resolve active month/year (for month nav) ──
-    try:
-        view_month = int(request.GET.get('month', now.month))
-        view_year  = int(request.GET.get('year',  now.year))
-        if not (1 <= view_month <= 12):
-            raise ValueError
-    except (ValueError, TypeError):
-        view_month, view_year = now.month, now.year
+    nav = get_month_navigation(request)
+    view_month = nav['view_month']
+    view_year = nav['view_year']
 
     # ── income: sum Income entries for the active month/year ──
     income = float(
@@ -66,26 +122,15 @@ def dashboard_view(request):
     )
 
     # ── custom date-range filter ──
-    start_str    = request.GET.get('start_date', '')
-    end_str      = request.GET.get('end_date',   '')
-    filter_cat   = request.GET.get('filter_cat', '')
-
-    if start_str and end_str:
-        try:
-            start_dt = datetime.strptime(start_str, '%Y-%m-%d').date()
-            end_dt   = datetime.strptime(end_str,   '%Y-%m-%d').date()
-            is_custom = True
-            filter_label = f"{start_dt.strftime('%d %b')} – {end_dt.strftime('%d %b %Y')}"
-        except ValueError:
-            is_custom = False
-            start_dt = date(view_year, view_month, 1)
-            end_dt   = date(view_year, view_month, _last_day(view_year, view_month))
-            filter_label = f"{month_name[view_month]} {view_year}"
-    else:
-        is_custom = False
-        start_dt = date(view_year, view_month, 1)
-        end_dt   = date(view_year, view_month, _last_day(view_year, view_month))
-        filter_label = f"{month_name[view_month]} {view_year}"
+    filter_cat = request.GET.get('filter_cat', '')
+    date_range_info = get_date_range(request, view_month, view_year)
+    
+    start_dt = date_range_info['start_dt']
+    end_dt = date_range_info['end_dt']
+    is_custom = date_range_info['is_custom']
+    filter_label = date_range_info['filter_label']
+    start_str = date_range_info['start_str']
+    end_str = date_range_info['end_str']
 
     # for custom range, re-sum income over that date range
     if is_custom:
@@ -101,27 +146,9 @@ def dashboard_view(request):
 
     total   = float(period_expenses.aggregate(Sum('amount'))['amount__sum'] or 0)
     balance = income - total
-    savings_rate = round((balance / income * 100), 1) if income > 0 else 0
-    savings_rate = max(0, min(100, savings_rate))
-
-    # ── financial health ──
-    if savings_rate >= 30:
-        health_label, health_color = 'Excellent', '#16a34a'
-    elif savings_rate >= 15:
-        health_label, health_color = 'Good', '#2563eb'
-    elif savings_rate >= 0:
-        health_label, health_color = 'Fair', '#d97706'
-    else:
-        health_label, health_color = 'Over Budget', '#dc2626'
-
-    if savings_rate >= 30:
-        health_tip = "Great work! You're saving more than usual."
-    elif savings_rate >= 15:
-        health_tip = "You're on track. Try to push savings above 30%."
-    elif savings_rate >= 0:
-        health_tip = "Spending is high. Review your top categories."
-    else:
-        health_tip = "You've exceeded your income budget this period."
+    
+    # Calculate savings rate and financial health
+    savings_rate, health_label, health_color, health_tip = calculate_savings_rate(income, total)
 
     # ── prev month comparison ──
     if not is_custom:
@@ -139,15 +166,8 @@ def dashboard_view(request):
     else:
         savings_delta = None
 
-    # ── prev / next month nav links ──
-    if view_month == 1:
-        prev_m, prev_y = 12, view_year - 1
-    else:
-        prev_m, prev_y = view_month - 1, view_year
-    if view_month == 12:
-        next_m, next_y = 1, view_year + 1
-    else:
-        next_m, next_y = view_month + 1, view_year
+    # ── available years for dropdown ──
+    years = get_available_years(request.user)
 
     # ── category breakdown ──
     cat_data    = period_expenses.values('category').annotate(total=Sum('amount')).order_by('-total')
@@ -161,8 +181,7 @@ def dashboard_view(request):
     daily_amounts = [float(d['total']) for d in daily_raw]
 
     # ── available years for dropdown ──
-    year_dates = all_expenses.dates('date', 'year')
-    years = sorted(set([d.year for d in year_dates] + [now.year]), reverse=True)
+    years = get_available_years(request.user)
 
     # ── month names list (1-indexed) ──
     month_names = list(month_name)[1:]  # ['January', ..., 'December']
@@ -248,8 +267,10 @@ def dashboard_view(request):
         'filter_cat': filter_cat,
         'view_month': view_month,
         'view_year': view_year,
-        'prev_m': prev_m, 'prev_y': prev_y,
-        'next_m': next_m, 'next_y': next_y,
+        'prev_m': nav['prev_m'],
+        'prev_y': nav['prev_y'],
+        'next_m': nav['next_m'],
+        'next_y': nav['next_y'],
         'years': years,
         'all_cats': all_cats,
         'month_names': month_names,
@@ -270,17 +291,21 @@ def dashboard_view(request):
     return render(request, 'dashboard/dashboard.html', context)
 
 
-def _last_day(year, month):
-    import calendar
-    return calendar.monthrange(year, month)[1]
-
-
 # ---------------------------
 # Tour — mark complete
 # ---------------------------
 
 @login_required(login_url='login')
-def tour_complete(request):
+def tour_complete(request: HttpRequest) -> JsonResponse:
+    """
+    Mark the onboarding tour as complete for the current user.
+    
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        JsonResponse: Success status or 405 if not POST
+    """
     if request.method == 'POST':
         from .models import UserProfile
         profile_obj, _ = UserProfile.objects.get_or_create(user=request.user)
@@ -295,7 +320,22 @@ def tour_complete(request):
 # ---------------------------
 
 @login_required(login_url='login')
-def export_data(request):
+def export_data(request: HttpRequest) -> HttpResponse:
+    """
+    Export user's financial data to CSV format.
+    
+    Features:
+        - Filter by date range (custom or month/year)
+        - Filter by categories
+        - Select data types (expenses, income, savings, subscriptions)
+        - UTF-8 BOM for Excel compatibility
+        
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: CSV file download or export form
+    """
     import csv
     from calendar import month_name
     from django.http import HttpResponse
@@ -388,7 +428,22 @@ def export_data(request):
 
 @never_cache
 @login_required(login_url='login')
-def profile(request):
+def profile(request: HttpRequest) -> HttpResponse:
+    """
+    User profile management page.
+    
+    Features:
+        - Update username, first name, last name, email
+        - Upload/remove avatar (max 2MB, JPEG/PNG/GIF/WebP)
+        - File type validation via magic bytes
+        - Safe avatar deletion (works with local and S3 storage)
+        
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Profile page with success/error messages
+    """
     from .models import UserProfile
     user = request.user
     profile_obj, _ = UserProfile.objects.get_or_create(user=user)
@@ -457,7 +512,21 @@ def profile(request):
 
 
 @login_required(login_url='login')
-def delete_account(request):
+def delete_account(request: HttpRequest) -> HttpResponse:
+    """
+    Delete user account with password confirmation.
+    
+    Security:
+        - Requires password verification
+        - Logs user out before deletion
+        - Cascades to all related data
+        
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Redirect to landing page or profile
+    """
     if request.method == 'POST':
         password = request.POST.get('confirm_password', '')
         if not request.user.check_password(password):
@@ -477,7 +546,8 @@ def delete_account(request):
 # ---------------------------
 
 @login_required(login_url='login')
-def settings(request):
+def settings(request: HttpRequest) -> HttpResponse:
+    """Redirect to default settings page (income)."""
     return redirect('settings_income')
 
 
@@ -486,31 +556,32 @@ def settings(request):
 # ---------------------------
 
 @login_required(login_url='login')
-def settings_income(request):
+def settings_income(request: HttpRequest) -> HttpResponse:
+    """
+    Income management page with month/year navigation.
+    
+    Features:
+        - List income entries for selected month
+        - Filter by source type
+        - Month/year navigation
+        - Total amount and record count
+        
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Income settings page
+    """
     from calendar import month_name as _month_name
     import calendar as _cal
     from datetime import date as _date
 
     today = _date.today()
 
-    # Month/year navigation
-    try:
-        view_month = int(request.GET.get('month', today.month))
-        view_year  = int(request.GET.get('year',  today.year))
-        if not (1 <= view_month <= 12):
-            raise ValueError
-    except (ValueError, TypeError):
-        view_month, view_year = today.month, today.year
-
-    # Prev/next month nav
-    if view_month == 1:
-        prev_m, prev_y = 12, view_year - 1
-    else:
-        prev_m, prev_y = view_month - 1, view_year
-    if view_month == 12:
-        next_m, next_y = 1, view_year + 1
-    else:
-        next_m, next_y = view_month + 1, view_year
+    # Month/year navigation using utility
+    nav = get_month_navigation(request)
+    view_month = nav['view_month']
+    view_year = nav['view_year']
 
     # Base queryset for selected month
     qs = Income.objects.filter(user=request.user, date__month=view_month, date__year=view_year)
@@ -538,15 +609,26 @@ def settings_income(request):
         'source_choices': Income.SOURCE_CHOICES,
         'view_month': view_month,
         'view_year': view_year,
-        'view_month_name': _month_name[view_month],
-        'prev_m': prev_m, 'prev_y': prev_y,
-        'next_m': next_m, 'next_y': next_y,
+        'view_month_name': nav['view_month_name'],
+        'prev_m': nav['prev_m'],
+        'prev_y': nav['prev_y'],
+        'next_m': nav['next_m'],
+        'next_y': nav['next_y'],
         'default_date': default_date,
     })
 
 
 @login_required(login_url='login')
-def income_add(request):
+def income_add(request: HttpRequest) -> HttpResponse:
+    """
+    Add a new income entry.
+    
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Redirect to income settings
+    """
     if request.method == 'POST':
         try:
             from decimal import Decimal, InvalidOperation
@@ -574,7 +656,17 @@ def income_add(request):
 
 @never_cache
 @login_required(login_url='login')
-def income_edit(request, pk):
+def income_edit(request: HttpRequest, pk: int) -> HttpResponse:
+    """
+    Edit an existing income entry.
+    
+    Args:
+        request: Django HttpRequest object
+        pk: Primary key of income entry
+        
+    Returns:
+        HttpResponse: Redirect to income settings
+    """
     income = get_object_or_404(Income, pk=pk, user=request.user)
     if request.method == 'POST':
         try:
@@ -595,7 +687,17 @@ def income_edit(request, pk):
 
 
 @login_required(login_url='login')
-def income_delete(request, pk):
+def income_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    """
+    Delete an income entry.
+    
+    Args:
+        request: Django HttpRequest object
+        pk: Primary key of income entry
+        
+    Returns:
+        HttpResponse: Redirect to income settings
+    """
     Income.objects.filter(pk=pk, user=request.user).delete()
     messages.success(request, 'Income entry deleted.')
     return redirect('settings_income')
@@ -606,7 +708,22 @@ def income_delete(request, pk):
 # ---------------------------
 
 @login_required(login_url='login')
-def settings_categories(request):
+def settings_categories(request: HttpRequest) -> HttpResponse:
+    """
+    Manage custom expense categories.
+    
+    Features:
+        - View default categories (read-only)
+        - Add custom categories
+        - Delete custom categories
+        - Duplicate prevention
+        
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Categories settings page
+    """
     default_categories = DEFAULT_CATEGORIES
     custom_categories  = CustomCategory.objects.filter(user=request.user)
     success = False
@@ -647,7 +764,23 @@ def settings_categories(request):
 
 @never_cache
 @login_required(login_url='login')
-def settings_budget(request):
+def settings_budget(request: HttpRequest) -> HttpResponse:
+    """
+    Monthly budget management with spending tracking.
+    
+    Features:
+        - Set budget limits per category per month
+        - View spending vs budget with progress bars
+        - Color-coded status (ok/warning/danger)
+        - Total budget and spending summary
+        - Month/year navigation
+        
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Budget settings page
+    """
     from expenses.forms import get_category_choices
     from expenses.models import Expense
     from datetime import date as _date
@@ -655,14 +788,10 @@ def settings_budget(request):
 
     today = _date.today()
 
-    # Month/year navigation
-    try:
-        view_month = int(request.GET.get('month', today.month))
-        view_year  = int(request.GET.get('year',  today.year))
-        if not (1 <= view_month <= 12):
-            raise ValueError
-    except (ValueError, TypeError):
-        view_month, view_year = today.month, today.year
+    # Month/year navigation using utility
+    nav = get_month_navigation(request)
+    view_month = nav['view_month']
+    view_year = nav['view_year']
 
     categories = [c for c, _ in get_category_choices(request.user)]
 
@@ -738,31 +867,20 @@ def settings_budget(request):
             'status': status,
         })
 
-    # Month nav
-    if view_month == 1:
-        prev_m, prev_y = 12, view_year - 1
-    else:
-        prev_m, prev_y = view_month - 1, view_year
-    if view_month == 12:
-        next_m, next_y = 1, view_year + 1
-    else:
-        next_m, next_y = view_month + 1, view_year
-
+    # Use utility function for formatting
     def fmt_amount(v):
-        if v >= 100000:
-            return f"₹{v/100000:.1f}L"
-        elif v >= 1000:
-            return f"₹{v/1000:.1f}K"
-        return f"₹{v:.0f}"
+        return format_currency(v)
 
     return render(request, 'dashboard/settings.html', {
         'section': 'budget',
         'budget_rows': budget_rows,
         'view_month': view_month,
         'view_year': view_year,
-        'view_month_name': _cal.month_name[view_month],
-        'prev_m': prev_m, 'prev_y': prev_y,
-        'next_m': next_m, 'next_y': next_y,
+        'view_month_name': nav['view_month_name'],
+        'prev_m': nav['prev_m'],
+        'prev_y': nav['prev_y'],
+        'next_m': nav['next_m'],
+        'next_y': nav['next_y'],
         'total_goal': total_goal,
         'total_spent': total_spent,
         'total_pct': total_pct,
@@ -930,8 +1048,10 @@ def subscription_add(request):
         try:
             if sub.status == 'active':
                 sub.advance_billing_date()
-        except Exception:
-            pass  # billing advance failure shouldn't affect the success message
+        except (ValueError, AttributeError) as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to advance billing for subscription {sub.pk}: {e}")
     return redirect('subscriptions')
 
 

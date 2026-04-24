@@ -1,6 +1,19 @@
 """
-Mock Bank Webhook — receives simulated bank transactions and creates Expenses.
+Mock Bank Webhook Handler
+
+Receives simulated bank transactions and creates Expense entries.
 The webhook token is bound to a specific user — no cross-user posting possible.
+
+Security:
+    - Token-based authentication (SHA-256 hashed)
+    - CSRF exempt (external API endpoint)
+    - User-scoped token prevents cross-user attacks
+    
+Validation:
+    - JSON payload validation
+    - Required field checking
+    - Amount validation (must be positive)
+    - Category sanitization
 """
 import json
 from datetime import date
@@ -16,6 +29,39 @@ from dashboard.models import WebhookToken
 @csrf_exempt
 @require_POST
 def bank_webhook(request):
+    """
+    Handle incoming bank transaction webhooks and create expense entries.
+    
+    Expected JSON payload:
+        {
+            "merchant": "Merchant Name",
+            "amount": 123.45,
+            "category": "Food",
+            "date": "2026-04-24"  (optional, defaults to today)
+        }
+    
+    Headers:
+        X-Bank-Token: User's webhook token (from Django admin)
+    
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        JsonResponse: 
+            - 201: Expense created successfully
+            - 400: Invalid JSON or missing required fields
+            - 401: Invalid or missing token
+            
+    Example Success Response:
+        {
+            "status": "created",
+            "expense_id": 123,
+            "title": "Swiggy",
+            "amount": "320.00",
+            "category": "Food",
+            "date": "2026-04-24"
+        }
+    """
     # Validate token and resolve the bound user
     token = request.headers.get('X-Bank-Token', '')
     token_obj = WebhookToken.verify(token)

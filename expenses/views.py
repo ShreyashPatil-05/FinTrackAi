@@ -1,31 +1,63 @@
+"""
+Expenses Views
+
+Handles CRUD operations for expense tracking with filtering,
+pagination, and bulk operations.
+"""
+from typing import Optional
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.db.models import Sum
+from django.http import HttpRequest, HttpResponse
 from datetime import date
 from calendar import month_name
 
 from .models import Expense, DEFAULT_CATEGORIES
 from .forms import ExpenseForm, get_category_choices
+from dashboard.utils import get_month_navigation, get_available_years
 
 
 def _all_categories(user):
+    """
+    Get all available categories for a user (default + custom).
+    
+    Args:
+        user: Django User object
+        
+    Returns:
+        list: Category names as strings
+    """
     return [c for c, _ in get_category_choices(user)]
 
 
 @login_required(login_url='login')
-def expense_list(request):
+def expense_list(request: HttpRequest) -> HttpResponse:
+    """
+    Display paginated list of expenses with filtering and search.
+    
+    Features:
+        - Month/year navigation
+        - Custom date range filtering
+        - Category filtering (multi-select)
+        - Text search on expense title
+        - User-selectable page size (10/20/50)
+        - Total amount and count display
+        
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Rendered expense list template
+    """
     today = date.today()
 
-    # Month/year nav
-    try:
-        view_month = int(request.GET.get('month', today.month))
-        view_year  = int(request.GET.get('year',  today.year))
-        if not (1 <= view_month <= 12):
-            raise ValueError
-    except (ValueError, TypeError):
-        view_month, view_year = today.month, today.year
+    # Month/year nav using utility
+    nav = get_month_navigation(request)
+    view_month = nav['view_month']
+    view_year = nav['view_year']
 
     # Filters
     search              = request.GET.get('search', '')
@@ -61,21 +93,8 @@ def expense_list(request):
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
 
-    # Month nav
-    if view_month == 1:
-        prev_m, prev_y = 12, view_year - 1
-    else:
-        prev_m, prev_y = view_month - 1, view_year
-    if view_month == 12:
-        next_m, next_y = 1, view_year + 1
-    else:
-        next_m, next_y = view_month + 1, view_year
-
-    # Available years
-    all_years = sorted(
-        set(Expense.objects.filter(user=request.user).dates('date', 'year').values_list('date__year', flat=True)) | {today.year},
-        reverse=True
-    )
+    # Available years using utility
+    all_years = get_available_years(request.user)
 
     return render(request, 'expenses/expense_list.html', {
         'expenses': page_obj,
@@ -87,9 +106,11 @@ def expense_list(request):
         'per_page': per_page,
         'view_month': view_month,
         'view_year': view_year,
-        'view_month_name': month_name[view_month],
-        'prev_m': prev_m, 'prev_y': prev_y,
-        'next_m': next_m, 'next_y': next_y,
+        'view_month_name': nav['view_month_name'],
+        'prev_m': nav['prev_m'],
+        'prev_y': nav['prev_y'],
+        'next_m': nav['next_m'],
+        'next_y': nav['next_y'],
         'all_years': all_years,
         'month_names': list(month_name)[1:],
         'is_custom': is_custom,
@@ -101,6 +122,15 @@ def expense_list(request):
 
 @login_required(login_url='login')
 def add_expense(request):
+    """
+    Create a new expense entry.
+    
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Expense form or redirect to list on success
+    """
     if request.method == 'POST':
         form = ExpenseForm(request.POST, user=request.user)
         if form.is_valid():
@@ -118,6 +148,19 @@ def add_expense(request):
 @never_cache
 @login_required(login_url='login')
 def edit_expense(request, pk):
+    """
+    Edit an existing expense entry.
+    
+    Args:
+        request: Django HttpRequest object
+        pk: Primary key of expense to edit
+        
+    Returns:
+        HttpResponse: Expense form or redirect to list on success
+        
+    Raises:
+        Http404: If expense doesn't exist or doesn't belong to user
+    """
     expense = get_object_or_404(Expense, pk=pk, user=request.user)
     if request.method == 'POST':
         form = ExpenseForm(request.POST, instance=expense, user=request.user)
@@ -132,6 +175,19 @@ def edit_expense(request, pk):
 
 @login_required(login_url='login')
 def delete_expense(request, pk):
+    """
+    Delete a single expense entry with confirmation.
+    
+    Args:
+        request: Django HttpRequest object
+        pk: Primary key of expense to delete
+        
+    Returns:
+        HttpResponse: Confirmation page (GET) or redirect to list (POST)
+        
+    Raises:
+        Http404: If expense doesn't exist or doesn't belong to user
+    """
     expense = get_object_or_404(Expense, pk=pk, user=request.user)
     if request.method == 'POST':
         title = expense.title
@@ -143,6 +199,18 @@ def delete_expense(request, pk):
 
 @login_required(login_url='login')
 def bulk_delete_expenses(request):
+    """
+    Delete multiple expenses at once (bulk operation).
+    
+    Expects POST data with 'selected_ids' list of expense primary keys.
+    Only deletes expenses belonging to the current user.
+    
+    Args:
+        request: Django HttpRequest object
+        
+    Returns:
+        HttpResponse: Redirect to expense list with success message
+    """
     if request.method == 'POST':
         ids = request.POST.getlist('selected_ids')
         count = Expense.objects.filter(pk__in=ids, user=request.user).count()

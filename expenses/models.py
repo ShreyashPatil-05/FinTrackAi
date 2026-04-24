@@ -1,3 +1,9 @@
+"""
+Expense Models
+
+Core expense tracking model with support for manual entries,
+bank webhooks, and subscription-generated expenses.
+"""
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -9,6 +15,22 @@ DEFAULT_CATEGORIES = [
 
 
 class Expense(models.Model):
+    """
+    Individual expense entry with amount, category, and source tracking.
+    
+    Sources:
+        - manual: User-created expense
+        - bank: Created via webhook from mock bank simulator
+        - subscription: Auto-generated from subscription billing
+    
+    Attributes:
+        user: Foreign key to User who owns this expense
+        title: Expense description (e.g., "Grocery shopping")
+        category: Category name (from DEFAULT_CATEGORIES or custom)
+        amount: Expense amount (Decimal for precision)
+        date: Date of expense
+        source: How the expense was created (manual/bank/subscription)
+    """
     SOURCE_MANUAL = 'manual'
     SOURCE_BANK   = 'bank'
     SOURCE_CHOICES = [
@@ -26,4 +48,7 @@ class Expense(models.Model):
 
     def __str__(self):
         return f"{self.category}: {self.amount} on {self.date}"
+    
+    def __repr__(self):
+        return f"<Expense: {self.title} - ₹{self.amount} ({self.source})>"
 

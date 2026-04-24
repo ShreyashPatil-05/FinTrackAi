@@ -1,7 +1,22 @@
+"""
+Security Middleware
+
+Custom middleware for Content Security Policy and security headers.
+"""
+
+
 class ContentSecurityPolicyMiddleware:
     """
     Adds Content-Security-Policy header to every response.
+    
     Restricts which sources can load scripts, styles, fonts and images.
+    Configured to allow:
+        - Self-hosted resources
+        - Google reCAPTCHA
+        - Google OAuth
+        - CDN resources (jsDelivr, Google Fonts)
+        
+    Also adds Referrer-Policy header for privacy protection.
     """
     def __init__(self, get_response):
         self.get_response = get_response

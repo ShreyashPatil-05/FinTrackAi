@@ -1,1 +1,1 @@
-web: python manage.py migrate --noinput && gunicorn fintrack.wsgi:application --workers 2 --threads 2 --timeout 60 --keep-alive 5 --bind 0.0.0.0:$PORT
+web: gunicorn fintrack.wsgi:application --workers 2 --threads 2 --timeout 60 --keep-alive 5 --bind 0.0.0.0:$PORT

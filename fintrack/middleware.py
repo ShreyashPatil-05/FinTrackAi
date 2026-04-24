@@ -10,12 +10,12 @@ class ContentSecurityPolicyMiddleware:
         response = self.get_response(request)
         csp = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net www.google.com www.gstatic.com; "
+            "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net www.google.com www.gstatic.com recaptcha.google.com; "
             "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net fonts.googleapis.com; "
             "font-src 'self' fonts.gstatic.com cdn.jsdelivr.net; "
-            "img-src 'self' data: lh3.googleusercontent.com; "
-            "connect-src 'self'; "
-            "frame-src www.google.com; "
+            "img-src 'self' data: lh3.googleusercontent.com www.gstatic.com; "
+            "connect-src 'self' www.google.com recaptcha.google.com; "
+            "frame-src www.google.com recaptcha.google.com; "
             "object-src 'none';"
         )
         response['Content-Security-Policy'] = csp

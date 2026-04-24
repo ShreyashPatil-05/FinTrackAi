@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 
-from .models import UserProfile, Income, CategoryBudget, Subscription, SavingsGoal, CustomCategory
+from .models import UserProfile, Income, CategoryBudget, Subscription, SavingsGoal, CustomCategory, WebhookToken
 from expenses.models import Expense
 
 
@@ -94,3 +94,19 @@ class FinTrackUserAdmin(BaseUserAdmin):
 
 admin.site.unregister(User)
 admin.site.register(User, FinTrackUserAdmin)
+
+
+# ── Webhook Token ─────────────────────────────────────
+
+@admin.register(WebhookToken)
+class WebhookTokenAdmin(admin.ModelAdmin):
+    list_display  = ('user', 'token_hash')
+    readonly_fields = ('token_hash',)
+    fields        = ('user', 'token_hash')
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        # Show the raw token once after creation
+        if hasattr(obj, '_raw_token'):
+            from django.contrib import messages
+            messages.success(request, f'Webhook token for {obj.user.username}: {obj._raw_token} — copy it now, it won\'t be shown again.')

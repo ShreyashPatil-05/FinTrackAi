@@ -5,8 +5,12 @@ from django.contrib.auth.models import User
 from django.views.decorators.cache import never_cache
 from django.core.cache import cache
 from django.conf import settings
+import logging
+
 from .forms import MyUserCreationForm, LoginForm, ChangePasswordForm
 from .models import EmailVerificationToken
+
+logger = logging.getLogger(__name__)
 
 
 def _get_client_ip(request):
@@ -44,43 +48,52 @@ def register_view(request):
     form = MyUserCreationForm(request.POST or None)
 
     if request.method == "POST":
-        # Rate limit: max 3 registrations per IP per hour
-        ip = _get_client_ip(request)
-        cache_key = f'register_attempts_{ip}'
-        attempts = cache.get(cache_key, 0)
+        try:
+            # Rate limit: max 3 registrations per IP per hour
+            ip = _get_client_ip(request)
+            cache_key = f'register_attempts_{ip}'
+            attempts = cache.get(cache_key, 0)
 
-        if attempts >= 3:
-            messages.error(request, 'Too many registration attempts. Please try again in an hour.')
-            return render(request, "accounts/auth.html", {
-                "form": form, "page_title": "Create Account",
-                "button_text": "Register", "page_type": "register", "hide_auth_nav": True,
-            })
-
-        if form.is_valid():
-            # Verify reCAPTCHA
-            recaptcha_response = request.POST.get('g-recaptcha-response', '')
-            if not _verify_recaptcha(recaptcha_response):
-                messages.error(request, 'Please complete the reCAPTCHA verification.')
+            if attempts >= 3:
+                messages.error(request, 'Too many registration attempts. Please try again in an hour.')
                 return render(request, "accounts/auth.html", {
                     "form": form, "page_title": "Create Account",
                     "button_text": "Register", "page_type": "register", "hide_auth_nav": True,
+                    "recaptcha_site_key": settings.RECAPTCHA_SITE_KEY,
                 })
 
-            user = form.save(commit=False)
-            user.is_active = False  # inactive until email verified
-            user.save()
+            if form.is_valid():
+                # Verify reCAPTCHA
+                recaptcha_response = request.POST.get('g-recaptcha-response', '')
+                if not _verify_recaptcha(recaptcha_response):
+                    messages.error(request, 'Please complete the reCAPTCHA verification.')
+                    return render(request, "accounts/auth.html", {
+                        "form": form, "page_title": "Create Account",
+                        "button_text": "Register", "page_type": "register", "hide_auth_nav": True,
+                        "recaptcha_site_key": settings.RECAPTCHA_SITE_KEY,
+                    })
 
-            # Increment attempt counter (expires in 1 hour)
-            cache.set(cache_key, attempts + 1, timeout=3600)
+                user = form.save(commit=False)
+                user.is_active = False
+                user.save()
 
-            # Create verification token and send email
-            token_obj = EmailVerificationToken.objects.create(user=user)
-            _send_verification_email(request, user, token_obj.token)
+                cache.set(cache_key, attempts + 1, timeout=3600)
 
-            messages.success(request, "Account created! Check your email to verify your account.")
-            return redirect("login")
-        else:
-            messages.error(request, "Registration failed. Please fix the errors.")
+                token_obj = EmailVerificationToken.objects.create(user=user)
+                _send_verification_email(request, user, token_obj.token)
+                messages.success(request, "Account created! Check your email to verify your account.")
+                return redirect("login")
+            else:
+                messages.error(request, "Registration failed. Please fix the errors.")
+
+        except Exception as e:
+            logger.error(f"Unexpected error in register_view: {e}", exc_info=True)
+            messages.error(request, "Something went wrong. Please try again.")
+            return render(request, "accounts/auth.html", {
+                "form": form, "page_title": "Create Account",
+                "button_text": "Register", "page_type": "register", "hide_auth_nav": True,
+                "recaptcha_site_key": settings.RECAPTCHA_SITE_KEY,
+            })
 
     return render(request, "accounts/auth.html", {
         "form": form,
@@ -95,22 +108,28 @@ def register_view(request):
 def _send_verification_email(request, user, token):
     from django.core.mail import send_mail
     from django.urls import reverse
+    import threading
+
     verify_url = request.build_absolute_uri(
         reverse('verify_email', args=[str(token)])
     )
-    send_mail(
-        subject='Verify your FinTrack account',
-        message=(
-            f"Hi {user.username},\n\n"
-            f"Click the link below to verify your email address:\n\n"
-            f"{verify_url}\n\n"
-            f"This link is valid for 24 hours.\n\n"
-            f"— FinTrack"
-        ),
-        from_email=None,  # uses DEFAULT_FROM_EMAIL
-        recipient_list=[user.email],
-        fail_silently=False,
+    subject = 'Verify your FinTrack account'
+    message = (
+        f"Hi {user.username},\n\n"
+        f"Click the link below to verify your email address:\n\n"
+        f"{verify_url}\n\n"
+        f"This link is valid for 24 hours.\n\n"
+        f"— FinTrack"
     )
+
+    def _send():
+        try:
+            send_mail(subject, message, None, [user.email], fail_silently=False)
+        except Exception as e:
+            logger.error(f"Background email send failed for {user.username}: {e}", exc_info=True)
+
+    thread = threading.Thread(target=_send, daemon=True)
+    thread.start()
 
 
 def verify_email(request, token):

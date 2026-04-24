@@ -11,6 +11,13 @@ ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
 # Railway terminates SSL at the proxy — trust the forwarded protocol header
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# CSRF trusted origins — must include your Railway domain
+CSRF_TRUSTED_ORIGINS = [
+    f'https://{host.strip()}'
+    for host in os.environ.get('ALLOWED_HOSTS', '').split(',')
+    if host.strip()
+]
+
 # ── Security headers ──────────────────────────────────────
 SECURE_SSL_REDIRECT        = True
 SESSION_COOKIE_SECURE      = True
@@ -28,9 +35,9 @@ import dj_database_url
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL:
-    # Supabase session pooler doesn't support persistent connections
-    conn_max_age = 0 if 'pooler.supabase.com' in DATABASE_URL else 60
-    DATABASES = {'default': dj_database_url.parse(DATABASE_URL, conn_max_age=conn_max_age)}
+    # Supabase session pooler — use sslmode=require and keep connections alive
+    conn_max_age = 60
+    DATABASES = {'default': dj_database_url.parse(DATABASE_URL, conn_max_age=conn_max_age, ssl_require=True)}
 else:
     DATABASES = {
         'default': {
@@ -81,6 +88,13 @@ LOGGING = {
     'root': {
         'handlers': ['console'],
         'level': 'WARNING',
+    },
+    'loggers': {
+        'accounts': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
     },
 }
 

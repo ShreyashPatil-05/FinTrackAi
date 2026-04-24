@@ -37,9 +37,15 @@
                             <label for="{{ form.email.id_for_label }}" class="form-label">
                                 Email (optional)
                             </label>
-                            {{ form.email }}
+                            <input type="email" 
+                                   name="email" 
+                                   id="{{ form.email.id_for_label }}"
+                                   class="form-control {% if form.email.errors %}is-invalid{% endif %}"
+                                   placeholder="{{ form.email.value|default:'your@email.com' }}"
+                                   value="{{ form.email.value|default:'' }}"
+                                   readonly>
                             {% if form.email.errors %}
-                                <div class="text-danger small mt-1">
+                                <div class="invalid-feedback">
                                     {{ form.email.errors }}
                                 </div>
                             {% endif %}
@@ -101,24 +107,65 @@
 
 <style>
     .card {
-        border-radius: 10px;
+        border-radius: 15px;
+        border: none;
     }
     
     .form-control {
-        border-radius: 5px;
-        padding: 10px;
+        border-radius: 8px;
+        padding: 12px 15px;
+        border: 1px solid #dee2e6;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    
+    .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+    
+    .form-control[readonly] {
+        background-color: #f8f9fa;
+        cursor: not-allowed;
     }
     
     .btn-primary {
-        border-radius: 5px;
-        padding: 10px;
-        font-weight: 500;
+        border-radius: 8px;
+        padding: 12px;
+        font-weight: 600;
+        font-size: 16px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
     }
     
     .alert-info {
         background-color: #e7f3ff;
-        border-color: #b3d9ff;
+        border: 1px solid #b3d9ff;
         color: #004085;
+        border-radius: 8px;
+    }
+    
+    .shadow-sm {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1) !important;
+    }
+    
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: #495057;
+    }
+    
+    .text-danger {
+        color: #dc3545 !important;
+    }
+    
+    .invalid-feedback {
+        display: block;
+        margin-top: 0.25rem;
+        font-size: 0.875rem;
     }
 </style>
 {% endblock %}

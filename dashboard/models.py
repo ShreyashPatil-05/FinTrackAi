@@ -4,8 +4,14 @@ Dashboard Models
 Core models for user profiles, income tracking, budgets, subscriptions,
 savings goals, and webhook authentication.
 """
+from datetime import date
+from decimal import Decimal
 from django.db import models
+from django.db.models import Sum
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError
+from dateutil.relativedelta import relativedelta
 
 
 class UserProfile(models.Model):
@@ -63,27 +69,72 @@ class Income(models.Model):
     date        = models.DateField()
     source      = models.CharField(max_length=100, choices=SOURCE_CHOICES, default='Salary')
     description = models.CharField(max_length=255, blank=True)
-    amount      = models.DecimalField(max_digits=12, decimal_places=2)
+    amount      = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
 
     class Meta:
         ordering = ['-date']
+        indexes = [
+            models.Index(fields=['user', '-date']),
+            models.Index(fields=['user', 'source']),
+        ]
+
+    def clean(self):
+        """Validate income data"""
+        if self.amount <= 0:
+            raise ValidationError({'amount': 'Amount must be greater than zero'})
+        if self.date > date.today():
+            raise ValidationError({'date': 'Income date cannot be in the future'})
+
+    def save(self, *args, **kwargs):
+        """Always validate before saving"""
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.source}: {self.amount} on {self.date}"
+        return f"{self.source}: ₹{self.amount} on {self.date}"
+    
+    def __repr__(self):
+        return f"<Income: {self.source} ₹{self.amount} ({self.date})>"
 
 
 class CategoryBudget(models.Model):
     user     = models.ForeignKey(User, on_delete=models.CASCADE, related_name='budgets')
     category = models.CharField(max_length=100)
-    limit    = models.DecimalField(max_digits=12, decimal_places=2)
+    limit    = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
     month    = models.PositiveSmallIntegerField(default=0)   # 0 = every month
     year     = models.PositiveSmallIntegerField(default=0)   # 0 = every month
 
     class Meta:
         unique_together = ('user', 'category', 'month', 'year')
+        indexes = [
+            models.Index(fields=['user', 'month', 'year']),
+        ]
+
+    def clean(self):
+        """Validate budget data"""
+        if self.limit <= 0:
+            raise ValidationError({'limit': 'Budget limit must be greater than zero'})
+        if self.month < 0 or self.month > 12:
+            raise ValidationError({'month': 'Month must be between 0 and 12'})
+
+    def save(self, *args, **kwargs):
+        """Always validate before saving"""
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.user.username} – {self.category} ({self.month}/{self.year}): {self.limit}"
+        return f"{self.user.username} – {self.category} ({self.month}/{self.year}): ₹{self.limit}"
+    
+    def __repr__(self):
+        return f"<CategoryBudget: {self.category} ₹{self.limit} ({self.month}/{self.year})>"
 
 
 class SavingsGoal(models.Model):
@@ -115,13 +166,32 @@ class SavingsGoal(models.Model):
     ]
     user        = models.ForeignKey(User, on_delete=models.CASCADE, related_name='savings_goals')
     name        = models.CharField(max_length=100)
-    target      = models.DecimalField(max_digits=12, decimal_places=2)
+    target      = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
     target_date = models.DateField(null=True, blank=True)
     icon        = models.CharField(max_length=30, default='piggy-bank')
     created_at  = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['target_date', 'created_at']
+        indexes = [
+            models.Index(fields=['user', 'target_date']),
+        ]
+
+    def clean(self):
+        """Validate savings goal data"""
+        if self.target <= 0:
+            raise ValidationError({'target': 'Target amount must be greater than zero'})
+        if self.target_date and self.target_date < date.today():
+            raise ValidationError({'target_date': 'Target date cannot be in the past'})
+
+    def save(self, *args, **kwargs):
+        """Always validate before saving"""
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.user.username})"
@@ -142,7 +212,7 @@ class SavingsGoal(models.Model):
         # Use prefetched contributions if available (avoids N+1 queries)
         if hasattr(self, '_prefetched_objects_cache') and 'contributions' in self._prefetched_objects_cache:
             return float(sum(c.amount for c in self._prefetched_objects_cache['contributions']))
-        from django.db.models import Sum
+        
         total = self.contributions.aggregate(Sum('amount'))['amount__sum']
         return float(total or 0)
 
@@ -173,14 +243,36 @@ class SavingsGoal(models.Model):
 
 class SavingsContribution(models.Model):
     goal       = models.ForeignKey(SavingsGoal, on_delete=models.CASCADE, related_name='contributions')
-    amount     = models.DecimalField(max_digits=12, decimal_places=2)
+    amount     = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
     date       = models.DateField()
 
     class Meta:
         ordering = ['-date']
+        indexes = [
+            models.Index(fields=['goal', '-date']),
+        ]
+
+    def clean(self):
+        """Validate contribution data"""
+        if self.amount <= 0:
+            raise ValidationError({'amount': 'Contribution amount must be greater than zero'})
+        if self.date > date.today():
+            raise ValidationError({'date': 'Contribution date cannot be in the future'})
+
+    def save(self, *args, **kwargs):
+        """Always validate before saving"""
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"+{self.amount} → {self.goal.name} on {self.date}"
+        return f"+₹{self.amount} → {self.goal.name} on {self.date}"
+    
+    def __repr__(self):
+        return f"<SavingsContribution: ₹{self.amount} to {self.goal.name}>"
 
 
 class Subscription(models.Model):
@@ -206,7 +298,11 @@ class Subscription(models.Model):
     ]
     user         = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subscriptions')
     name         = models.CharField(max_length=100)
-    amount       = models.DecimalField(max_digits=10, decimal_places=2)
+    amount       = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
     cycle        = models.CharField(max_length=10, choices=CYCLE_CHOICES, default='monthly')
     category     = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='Other')
     next_billing = models.DateField()
@@ -214,10 +310,27 @@ class Subscription(models.Model):
 
     class Meta:
         ordering = ['next_billing']
+        indexes = [
+            models.Index(fields=['user', 'status', 'next_billing']),
+        ]
+
+    def clean(self):
+        """Validate subscription data"""
+        if self.amount <= 0:
+            raise ValidationError({'amount': 'Subscription amount must be greater than zero'})
+        if self.next_billing < date.today():
+            raise ValidationError({'next_billing': 'Next billing date cannot be in the past'})
+
+    def save(self, *args, **kwargs):
+        """Always validate before saving"""
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.cycle})"
     
+    def __repr__(self):
+        return f"<Subscription: {self.name} ₹{self.amount}/{self.cycle} ({self.status})>"
     def __repr__(self):
         return f"<Subscription: {self.name} - ₹{self.amount}/{self.cycle} ({self.status})>"
 
@@ -247,9 +360,8 @@ class Subscription(models.Model):
         Raises:
             ValueError: If subscription cycle is invalid
         """
-        from datetime import date
-        from dateutil.relativedelta import relativedelta
         from expenses.models import Expense
+        
         today = date.today()
         if self.next_billing >= today:
             return

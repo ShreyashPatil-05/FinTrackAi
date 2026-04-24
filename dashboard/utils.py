@@ -4,7 +4,7 @@ Dashboard Utility Functions
 Shared helper functions for dashboard views to reduce code duplication
 and improve maintainability.
 """
-from datetime import date
+from datetime import date, datetime
 from typing import Dict, Tuple
 import calendar
 
@@ -130,7 +130,6 @@ def get_date_range(request, view_month: int, view_year: int) -> Dict:
             - start_str: Start date string (YYYY-MM-DD) or empty
             - end_str: End date string (YYYY-MM-DD) or empty
     """
-    from datetime import datetime
     
     start_str = request.GET.get('start_date', '').strip()
     end_str = request.GET.get('end_date', '').strip()
@@ -214,6 +213,7 @@ def get_available_years(user) -> list:
         list: Sorted list of years (newest first), always includes current year
     """
     from expenses.models import Expense
+    
     today = date.today()
     
     year_dates = Expense.objects.filter(user=user).dates('date', 'year')

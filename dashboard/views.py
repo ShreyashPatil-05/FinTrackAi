@@ -8,21 +8,26 @@ import csv
 import io
 import json
 import logging
-from datetime import datetime, date
+import calendar
+from datetime import datetime, date, timedelta
 from calendar import month_name
 from typing import Dict, Optional
+from decimal import Decimal, InvalidOperation
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.contrib.auth import logout as auth_logout
 from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.db.models import Sum
+from django.db import transaction
 from django.http import JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponse
 from django.urls import reverse
 
 from expenses.models import Expense, DEFAULT_CATEGORIES
-from .models import CustomCategory, Income, Subscription, CategoryBudget, SavingsGoal, SavingsContribution
+from expenses.forms import get_category_choices
+from .models import CustomCategory, Income, Subscription, CategoryBudget, SavingsGoal, SavingsContribution, UserProfile
 from .utils import (
     get_month_navigation,
     get_last_day_of_month,
@@ -67,8 +72,7 @@ def _advance_overdue_subscriptions(user) -> None:
     Args:
         user: Django User object
     """
-    from datetime import date as _today_date
-    _today = _today_date.today()
+    _today = date.today()
     for _sub in Subscription.objects.filter(
         user=user, status='active', next_billing__lt=_today
     ):
@@ -100,7 +104,6 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: Rendered dashboard template
     """
-    from .models import UserProfile
     profile_obj, _ = UserProfile.objects.get_or_create(user=request.user)
 
     # Advance overdue subscriptions on every dashboard load
@@ -218,7 +221,6 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
             }
 
     # ── categories for filter dropdown ──
-    from expenses.forms import get_category_choices
     all_cats = [c for c, _ in get_category_choices(request.user)]
 
     # ── budget alerts (current month only, not custom range) ──
@@ -307,7 +309,6 @@ def tour_complete(request: HttpRequest) -> JsonResponse:
         JsonResponse: Success status or 405 if not POST
     """
     if request.method == 'POST':
-        from .models import UserProfile
         profile_obj, _ = UserProfile.objects.get_or_create(user=request.user)
         profile_obj.onboarding_complete = True
         profile_obj.save(update_fields=['onboarding_complete'])
@@ -336,11 +337,7 @@ def export_data(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: CSV file download or export form
     """
-    import csv
-    from calendar import month_name
-    from django.http import HttpResponse
-    from expenses.forms import get_category_choices
-
+    
     all_cats = [c for c, _ in get_category_choices(request.user)]
     today = date.today()
     months = [(i, month_name[i]) for i in range(1, 13)]
@@ -444,7 +441,6 @@ def profile(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: Profile page with success/error messages
     """
-    from .models import UserProfile
     user = request.user
     profile_obj, _ = UserProfile.objects.get_or_create(user=user)
     success = False
@@ -533,8 +529,7 @@ def delete_account(request: HttpRequest) -> HttpResponse:
             messages.error(request, 'Incorrect password. Account not deleted.')
             return redirect('profile')
         user = request.user
-        from django.contrib.auth import logout
-        logout(request)
+        auth_logout(request)
         user.delete()
         messages.success(request, 'Your account has been deleted.')
         return redirect('landing')
@@ -572,11 +567,8 @@ def settings_income(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: Income settings page
     """
-    from calendar import month_name as _month_name
-    import calendar as _cal
-    from datetime import date as _date
-
-    today = _date.today()
+    
+    today = date.today()
 
     # Month/year navigation using utility
     nav = get_month_navigation(request)
@@ -631,7 +623,6 @@ def income_add(request: HttpRequest) -> HttpResponse:
     """
     if request.method == 'POST':
         try:
-            from decimal import Decimal, InvalidOperation
             inc_date = request.POST['date']
             amount = Decimal(request.POST['amount'])
             if amount <= 0:
@@ -645,7 +636,6 @@ def income_add(request: HttpRequest) -> HttpResponse:
                 amount=amount,
             )
             messages.success(request, 'Income added.')
-            from datetime import datetime
             d = datetime.strptime(inc_date, '%Y-%m-%d')
             return redirect(f"/settings/income/?month={d.month}&year={d.year}")
         except (InvalidOperation, KeyError):
@@ -670,7 +660,6 @@ def income_edit(request: HttpRequest, pk: int) -> HttpResponse:
     income = get_object_or_404(Income, pk=pk, user=request.user)
     if request.method == 'POST':
         try:
-            from decimal import Decimal, InvalidOperation
             amount = Decimal(request.POST['amount'])
             if amount <= 0:
                 messages.error(request, 'Amount must be greater than zero.')
@@ -781,12 +770,8 @@ def settings_budget(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: Budget settings page
     """
-    from expenses.forms import get_category_choices
-    from expenses.models import Expense
-    from datetime import date as _date
-    import calendar as _cal
-
-    today = _date.today()
+    
+    today = date.today()
 
     # Month/year navigation using utility
     nav = get_month_navigation(request)
@@ -989,7 +974,6 @@ def settings_upload(request):
 
 @login_required(login_url='login')
 def subscriptions(request):
-    from datetime import date, timedelta
     today = date.today()
     week_ahead = today + timedelta(days=7)
 
@@ -1158,8 +1142,7 @@ def savings_goal_add_funds(request, pk):
     goal = get_object_or_404(SavingsGoal, pk=pk, user=request.user)
     if request.method == 'POST':
         try:
-            from datetime import date
-            from django.db import transaction
+            
             amount = float(request.POST['amount'])
             if amount <= 0:
                 messages.error(request, 'Amount must be greater than zero.')

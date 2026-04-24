@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 
@@ -108,5 +108,5 @@ class WebhookTokenAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
         # Show the raw token once after creation
         if hasattr(obj, '_raw_token'):
-            from django.contrib import messages
+            
             messages.success(request, f'Webhook token for {obj.user.username}: {obj._raw_token} — copy it now, it won\'t be shown again.')

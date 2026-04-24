@@ -12,6 +12,7 @@ from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.db.models import Sum
 from django.http import HttpRequest, HttpResponse
+from django.core.paginator import Paginator
 from datetime import date
 from calendar import month_name
 
@@ -82,7 +83,6 @@ def expense_list(request: HttpRequest) -> HttpResponse:
     count = expenses.count()
 
     # Pagination — user-selectable page size
-    from django.core.paginator import Paginator
     try:
         per_page = int(request.GET.get('per_page', 10))
         if per_page not in (10, 20, 50):

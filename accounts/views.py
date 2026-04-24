@@ -4,8 +4,22 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.views.decorators.cache import never_cache
 from django.core.cache import cache
+from django.core.mail import send_mail
 from django.conf import settings
+from django.urls import reverse
+from django.utils import timezone
 import logging
+import threading
+import os
+from datetime import timedelta
+
+# Optional: SendGrid for production email
+try:
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail, Email, To, Content
+    SENDGRID_AVAILABLE = True
+except ImportError:
+    SENDGRID_AVAILABLE = False
 
 from .forms import MyUserCreationForm, LoginForm, ChangePasswordForm
 from .models import EmailVerificationToken
@@ -45,9 +59,10 @@ def _verify_recaptcha(response_token):
     Note:
         Returns True if RECAPTCHA_SECRET_KEY is not configured (dev fallback)
     """
-    from django.conf import settings
     import urllib.request
     import urllib.parse
+    import json
+    
     if not settings.RECAPTCHA_SECRET_KEY:
         return True  # skip verification if key not configured (dev fallback)
     try:
@@ -57,7 +72,6 @@ def _verify_recaptcha(response_token):
         }).encode()
         req = urllib.request.Request('https://www.google.com/recaptcha/api/siteverify', data=data)
         with urllib.request.urlopen(req, timeout=5) as resp:
-            import json
             result = json.loads(resp.read())
             return result.get('success', False)
     except Exception:
@@ -158,11 +172,6 @@ def _send_verification_email(request, user, token):
     Returns:
         None (email sent asynchronously)
     """
-    from django.urls import reverse
-    from django.conf import settings
-    import threading
-    import os
-
     verify_url = request.build_absolute_uri(
         reverse('verify_email', args=[str(token)])
     )
@@ -183,12 +192,9 @@ def _send_verification_email(request, user, token):
             sendgrid_api_key = os.environ.get('EMAIL_HOST_PASSWORD', '')
             
             # Use SendGrid HTTP API if API key is present
-            if sendgrid_api_key and sendgrid_api_key.startswith('SG.'):
+            if sendgrid_api_key and sendgrid_api_key.startswith('SG.') and SENDGRID_AVAILABLE:
                 logger.info("Using SendGrid HTTP API")
                 try:
-                    from sendgrid import SendGridAPIClient
-                    from sendgrid.helpers.mail import Mail, Email, To, Content
-                    
                     from_email = Email(os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@fintrack.app'))
                     to_email = To(user.email)
                     content = Content("text/plain", message)
@@ -202,13 +208,12 @@ def _send_verification_email(request, user, token):
                         logger.info(f"Email sent successfully to {user.email} via SendGrid API")
                     else:
                         logger.error(f"SendGrid API error: {response.status_code} - {response.body}")
-                except ImportError:
-                    logger.error("SendGrid library not installed. Run: pip install sendgrid")
+                except Exception as e:
+                    logger.error(f"SendGrid API error: {e}", exc_info=True)
                     raise
             else:
                 # Fall back to SMTP for local development
                 logger.info("Using SMTP (local development)")
-                from django.core.mail import send_mail
                 send_mail(subject, message, None, [user.email], fail_silently=False)
                 logger.info(f"Email sent successfully to {user.email} via SMTP")
                 
@@ -242,8 +247,6 @@ def verify_email(request, token):
         token_obj = EmailVerificationToken.objects.get(token=token)
 
         # Check token is not older than 24 hours
-        from django.utils import timezone
-        from datetime import timedelta
         if timezone.now() - token_obj.created_at > timedelta(hours=24):
             token_obj.delete()
             messages.error(request, 'Verification link has expired. Please register again.')

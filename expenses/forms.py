@@ -1,9 +1,9 @@
 from django import forms
 from .models import Expense, DEFAULT_CATEGORIES
+from dashboard.models import CustomCategory
 
 
 def get_category_choices(user):
-    from dashboard.models import CustomCategory
     custom = list(CustomCategory.objects.filter(user=user).values_list('name', flat=True))
     all_cats = DEFAULT_CATEGORIES[:]
     for c in custom:

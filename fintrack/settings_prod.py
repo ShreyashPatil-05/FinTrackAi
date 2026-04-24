@@ -8,6 +8,9 @@ import os
 DEBUG = False
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') + ['healthcheck.railway.app']
 
+# Override SITE_ID for production (Railway created Site with ID=2)
+SITE_ID = 2
+
 # Railway terminates SSL at the proxy — trust the forwarded protocol header
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 

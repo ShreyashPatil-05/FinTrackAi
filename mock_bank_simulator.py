@@ -17,8 +17,8 @@ import time
 from datetime import date
 
 # ── Config ────────────────────────────────────────────────
-WEBHOOK_URL    = 'http://127.0.0.1:8000/api/webhook/bank/'
-WEBHOOK_SECRET = 'paste-your-webhook-token-here'  # from Django admin > Webhook Tokens
+WEBHOOK_URL    = 'https://web-production-95045.up.railway.app/api/webhook/bank/'
+WEBHOOK_SECRET = 'kEOkVD7a-0Hc6edWb4Bs7mskjiSrRTIdFGA6kx-w088'  # from Django admin > Webhook Tokens
 INTERVAL       = 8   # seconds between transactions
 
 # ── Simulated transactions ────────────────────────────────
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     if WEBHOOK_SECRET == 'paste-your-webhook-token-here':
         print("\n  ERROR: WEBHOOK_SECRET is not set.")
         print("  Steps:")
-        print("  1. Go to http://127.0.0.1:8000/admin/")
+        print("  1. Go to https://web-production-95045.up.railway.app/admin/")
         print("  2. Dashboard > Webhook Tokens > Add > select your user > Save")
         print("  3. Copy the token and paste it as WEBHOOK_SECRET in this file")
         print()

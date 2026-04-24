@@ -17,11 +17,11 @@ urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
 
-    # Authentication (register, login, logout, change-password)
-    path('accounts/', include('accounts.urls')),
-
     # Google OAuth via django-allauth
-    path('social/', include('allauth.urls')),
+    path('accounts/', include('allauth.urls')),
+
+    # Custom authentication (register, login, logout, change-password)
+    path('auth/', include('accounts.urls')),
 
     # Expenses (list, add, edit, delete, bulk-delete)
     path('expenses/', include('expenses.urls')),

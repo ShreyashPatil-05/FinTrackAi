@@ -3,13 +3,14 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     """
-    Explicitly drops the FK constraint first, then drops the table.
-    This handles Postgres refusing CASCADE on DROP TABLE in some configurations.
-    All statements use IF EXISTS so they are safe no-ops if already done.
+    Drops the FK constraint by its exact Postgres name, then drops the table.
+    Migration 0003 may have been recorded but failed silently — this is a new
+    migration so Django will always run it fresh.
+    All statements are safe no-ops if the constraint/table no longer exists.
     """
 
     dependencies = [
-        ('accounts', '0002_drop_email_verification_token'),
+        ('accounts', '0003_drop_token_table_cascade'),
     ]
 
     operations = [

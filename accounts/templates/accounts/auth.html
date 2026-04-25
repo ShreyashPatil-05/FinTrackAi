@@ -103,9 +103,19 @@
 
             {% if messages %}
                 {% for message in messages %}
-                    <div class="auth-alert">
-                        <i class="bi bi-exclamation-circle me-2"></i>{{ message|safe }}
+                    {% if 'success' in message.tags %}
+                    <div class="auth-alert auth-alert--success">
+                        <i class="bi bi-check-circle-fill me-2"></i>{{ message|safe }}
                     </div>
+                    {% elif 'warning' in message.tags %}
+                    <div class="auth-alert auth-alert--warning">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ message|safe }}
+                    </div>
+                    {% else %}
+                    <div class="auth-alert auth-alert--error">
+                        <i class="bi bi-exclamation-circle-fill me-2"></i>{{ message|safe }}
+                    </div>
+                    {% endif %}
                 {% endfor %}
             {% endif %}
 

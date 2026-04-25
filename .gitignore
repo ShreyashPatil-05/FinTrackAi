@@ -19,3 +19,4 @@ env/
 
 # Testing/Debug scripts
 test_sendgrid.py
+locustfile.py

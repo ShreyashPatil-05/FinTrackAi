@@ -1036,6 +1036,25 @@ body {
     .cta-title { font-size: 1.5rem; }
 }
 
+@media (max-width: 480px) {
+    /* Hero section tighter on small phones */
+    .landing-hero .container { padding-left: 16px; padding-right: 16px; }
+    .landing-hero .row { min-height: unset !important; padding: 2rem 0 1.5rem; }
+    .hero-title { font-size: 1.9rem; line-height: 1.2; }
+    .hero-subtitle { font-size: 0.95rem; margin-bottom: 1.4rem; }
+    .hero-badge { font-size: 0.75rem; padding: 5px 12px; margin-bottom: 1rem; }
+    .hero-actions { gap: 10px; }
+    .btn-hero-primary, .btn-hero-ghost { padding: 11px 20px; font-size: 0.88rem; width: 100%; text-align: center; }
+    .hero-trust { gap: 6px; }
+    .trust-item { font-size: 0.78rem; }
+
+    /* Preview card smaller */
+    .hero-dashboard-preview { width: 100%; display: flex; justify-content: center; margin-top: 1.5rem; }
+    .preview-card { width: 100%; max-width: 300px; padding: 14px; }
+    .preview-stat { padding: 8px 10px; }
+    .stat-value { font-size: 0.9rem; }
+}
+
 /* ==================================
    Navbar — Landing vs App
 ================================== */
@@ -1057,6 +1076,18 @@ body {
 
 .navbar-landing .navbar-toggler {
     border-color: rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.08);
+}
+
+.navbar-landing .navbar-toggler-icon {
+    filter: invert(1);
+}
+
+.navbar-landing .navbar-collapse {
+    background: linear-gradient(135deg, #0f0c29, #1a1a4e);
+    padding: 12px 0 8px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin-top: 4px;
 }
 
 .navbar-app {
@@ -1499,15 +1530,17 @@ body {
 @media (max-width: 768px) {
     .auth-body { overflow: auto; height: auto; }
     .auth-page  { flex-direction: column; height: auto; }
-    .auth-left  { flex: 0 0 auto; padding: 1.8rem; }
-    .auth-left-content h2 { font-size: 1.3rem; }
+    .auth-left  { flex: 0 0 auto; padding: 1.2rem 1.5rem; }
+    .auth-left-inner { padding: 1rem 0; flex-direction: row; align-items: center; gap: 12px; justify-content: space-between; }
+    .auth-left-content { display: none; }
     .auth-features, .auth-deco-card { display: none; }
-    .auth-right { padding: 2rem 1.2rem; overflow: visible; }
+    .auth-right { padding: 1.5rem 1.2rem; overflow: visible; }
 }
 
-/* ==================================
-   Password Toggle
-================================== */
+@media (max-width: 480px) {
+    .auth-left { padding: 1rem 1.2rem; }
+    .auth-right { padding: 1.2rem 1rem; }
+}
 
 .pw-toggle {
     position: absolute;

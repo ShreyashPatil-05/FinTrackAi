@@ -4750,7 +4750,7 @@ select.expense-input {
 
 /* ══════════════════════════════════════════════════════
    MOBILE RESPONSIVENESS — Global Patches
-   Covers: 768px (tablet), 480px (phone), 375px (small)
+   Covers: 991px (tablet-lg), 768px (tablet), 480px (phone), 375px (small)
 ══════════════════════════════════════════════════════ */
 
 /* ── Prevent horizontal overflow globally ── */
@@ -4764,19 +4764,9 @@ body { overflow-x: hidden; }
     .navbar-nav .nav-item.ms-2 { margin-left: 0 !important; }
     .navbar-nav .dropdown-menu { position: static !important; box-shadow: none; border: 1px solid #e2e8f0; margin-top: 4px; }
     .theme-toggle { margin-top: 6px; }
-
-    /* Auth buttons — always side by side in collapsed menu */
-    .nav-auth-btns {
-        display: flex;
-        gap: 8px;
-        padding: 8px 0 4px;
-        width: 100%;
-    }
+    .nav-auth-btns { display: flex; gap: 8px; padding: 8px 0 4px; width: 100%; }
     .nav-auth-btns .btn-nav-ghost,
-    .nav-auth-btns .btn-nav-primary {
-        flex: 1;
-        text-align: center;
-    }
+    .nav-auth-btns .btn-nav-primary { flex: 1; text-align: center; }
 }
 
 /* ── Dashboard ── */
@@ -5776,3 +5766,106 @@ body { overflow-x: hidden; }
 [data-theme="dark"] .db-empty-state { background: var(--card-bg); border-color: var(--border); }
 [data-theme="dark"] .db-empty-title { color: var(--text); }
 [data-theme="dark"] .db-empty-icon  { background: linear-gradient(135deg, rgba(99,102,241,.2), rgba(79,142,247,.15)); }
+
+
+/* ══════════════════════════════════════════════════════
+   COMPREHENSIVE MOBILE FIXES — All Pages
+   Applied: April 2026
+══════════════════════════════════════════════════════ */
+
+/* ── Dashboard ── */
+@media (max-width: 768px) {
+    .db-topbar { flex-direction: column; align-items: flex-start; padding: 10px 14px; }
+    .db-alert-item { flex-wrap: wrap; gap: 4px; }
+    .db-alert-pct { margin-left: auto; }
+    .db-forecast-card { flex-direction: column; align-items: flex-start; padding: 16px 18px; }
+    .db-forecast-stats { gap: 16px; width: 100%; justify-content: flex-start; }
+}
+
+/* ── Expense List ── */
+@media (max-width: 768px) {
+    .el-card-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    .el-summary-strip { width: 100%; }
+}
+@media (max-width: 480px) {
+    .el-card-grid { grid-template-columns: 1fr; }
+    .el-perpage-wrap { flex-wrap: wrap; gap: 8px; width: 100%; }
+    .el-pagination { gap: 4px; }
+}
+
+/* ── Expense Form ── */
+@media (max-width: 480px) {
+    .ef-actions { flex-direction: column; }
+    .ef-btn-submit, .ef-btn-cancel { width: 100%; text-align: center; justify-content: center; }
+}
+
+/* ── Settings ── */
+@media (max-width: 768px) {
+    .stg-panel-header .bgt-copy-btn { width: 100%; justify-content: center; }
+}
+@media (max-width: 480px) {
+    .stg-cat-grid { grid-template-columns: 1fr 1fr; }
+    .stg-file-drop { padding: 24px 16px; }
+}
+
+/* ── Subscriptions ── */
+@media (max-width: 768px) {
+    .sub-header { flex-wrap: wrap; gap: 12px; }
+    .sub-btn-add { width: 100%; justify-content: center; }
+}
+@media (max-width: 480px) {
+    .sub-card-footer { flex-wrap: wrap; gap: 8px; }
+}
+
+/* ── Savings Goals ── */
+@media (max-width: 480px) {
+    .sg-card-footer { flex-wrap: wrap; gap: 8px; }
+}
+
+/* ── Savings Goal Detail ── */
+@media (max-width: 480px) {
+    .sgd-back-btn { font-size: .85rem; }
+}
+
+/* ── Profile ── */
+@media (max-width: 480px) {
+    .prof-info-row { flex-wrap: wrap; gap: 4px; }
+    .prof-btn-save, .prof-btn-delete { width: 100%; text-align: center; }
+    #deleteModal > div { padding: 20px 16px 18px !important; }
+}
+
+/* ── Export Page ── */
+@media (max-width: 768px) {
+    .exp-mode-tabs { flex-wrap: wrap; }
+    .exp-mode-tab { flex: 1 1 auto; text-align: center; }
+}
+@media (max-width: 480px) {
+    .exp-mode-tab { font-size: .8rem; padding: 6px 10px; }
+}
+
+/* ── Auth Page ── */
+@media (max-width: 480px) {
+    .btn-google-auth { font-size: .85rem; padding: 9px 12px; }
+    .g-recaptcha { transform: scale(0.88); transform-origin: left center; }
+}
+
+/* ── Modals — full width ── */
+@media (max-width: 480px) {
+    .inc-modal-header { padding: 14px 16px; }
+    .inc-modal-footer { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+    .inc-modal-footer .stg-btn-cancel,
+    .inc-modal-footer .inc-btn-add,
+    .inc-modal-footer .sub-btn-add { flex: 1 1 auto; text-align: center; justify-content: center; }
+}
+
+/* ── Landing Page ── */
+@media (max-width: 480px) {
+    .hero-actions { flex-direction: column; gap: 10px; }
+    .btn-hero-primary, .btn-hero-ghost { width: 100%; text-align: center; }
+    .stat-number { font-size: 1.5rem; }
+    .section-title { font-size: 1.4rem; }
+    .section-subtitle { font-size: 0.88rem; }
+    .cta-box { padding: 2.5rem 1.2rem; }
+    .cta-title { font-size: 1.3rem; }
+    .btn-cta { width: 100%; text-align: center; }
+}

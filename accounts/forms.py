@@ -1,3 +1,4 @@
+import re
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
@@ -15,7 +16,7 @@ class MyUserCreationForm(UserCreationForm):
             'placeholder': 'Enter username'
         })
     )
-    
+
     email = forms.EmailField(
         required=True,
         widget=forms.EmailInput(attrs={
@@ -45,14 +46,14 @@ class MyUserCreationForm(UserCreationForm):
         fields = ['username', 'email', 'password1', 'password2']
 
     def clean_email(self):
-        """Validate email is unique"""
+        """Validate email is unique."""
         email = self.cleaned_data.get('email')
         if email and User.objects.filter(email=email).exists():
             raise forms.ValidationError("This email address is already registered.")
         return email
-    
+
     def clean_username(self):
-        """Validate username is unique and meets requirements"""
+        """Validate username is unique and meets requirements."""
         username = self.cleaned_data.get('username')
         if username:
             if User.objects.filter(username=username).exists():
@@ -60,13 +61,12 @@ class MyUserCreationForm(UserCreationForm):
             if len(username) < 3:
                 raise forms.ValidationError("Username must be at least 3 characters long.")
             # Allow only letters, numbers, and underscores
-            import re
             if not re.match(r'^[a-zA-Z0-9_]+$', username):
                 raise forms.ValidationError("Username can only contain letters, numbers, and underscores.")
         return username
-    
+
     def save(self, commit=True):
-        """Save user with email"""
+        """Save user with email."""
         user = super().save(commit=False)
         user.email = self.cleaned_data['email']
         if commit:

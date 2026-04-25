@@ -104,7 +104,7 @@
             {% if messages %}
                 {% for message in messages %}
                     <div class="auth-alert">
-                        <i class="bi bi-exclamation-circle me-2"></i>{{ message }}
+                        <i class="bi bi-exclamation-circle me-2"></i>{{ message|safe }}
                     </div>
                 {% endfor %}
             {% endif %}

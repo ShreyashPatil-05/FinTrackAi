@@ -3012,7 +3012,33 @@ select.expense-input {
     .stg-sidebar { flex: none; width: 100%; position: static; }
     .stg-nav { flex-direction: row; flex-wrap: wrap; gap: 4px; }
     .stg-nav-item { flex: 1 1 auto; justify-content: center; font-size: .8rem; padding: 8px 10px; }
-    .stg-panel-header { flex-wrap: wrap; gap: 8px; }
+    
+    /* Panel header - stack elements */
+    .stg-panel-header { 
+        flex-wrap: wrap; 
+        gap: 12px;
+        padding-bottom: 16px;
+    }
+    .stg-panel-header .inc-btn-add {
+        width: 100%;
+        justify-content: center;
+        margin-left: 0 !important;
+    }
+    
+    /* Month navigation - make compact */
+    .bgt-month-nav {
+        width: 100%;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+    .bgt-month-label {
+        font-size: 0.85rem;
+        min-width: 90px;
+    }
+    .bgt-nav-btn {
+        width: 32px;
+        height: 32px;
+    }
     
     /* Income filter improvements */
     .inc-filter-strip { 
@@ -3021,8 +3047,8 @@ select.expense-input {
         padding: 12px 14px;
     }
     .inc-filter-group { 
-        flex: 1 1 calc(50% - 4px); 
-        min-width: 130px;
+        flex: 1 1 100%; 
+        min-width: 100%;
     }
     .inc-filter-input {
         min-width: 100%;
@@ -3032,6 +3058,15 @@ select.expense-input {
     .inc-btn-reset {
         flex: 1 1 calc(50% - 4px);
         align-self: stretch;
+    }
+    
+    /* Income summary */
+    .inc-summary-strip {
+        gap: 10px;
+    }
+    .inc-summary-card {
+        flex: 1 1 calc(50% - 5px);
+        min-width: 140px;
     }
     
     .inc-modal { width: 95vw; max-width: 95vw; }
@@ -4785,8 +4820,19 @@ body { overflow-x: hidden; }
     .stg-nav-item { font-size: .75rem; padding: 7px 8px; }
     .budget-grid { grid-template-columns: 1fr; }
     .stg-panel { padding: 16px; }
-    .inc-summary-strip { grid-template-columns: 1fr 1fr; }
-    .bgt-total-spent { font-size: 1.5rem; }
+    .stg-panel-header {
+        gap: 10px;
+    }
+    
+    /* Income summary - stack vertically */
+    .inc-summary-strip { 
+        grid-template-columns: 1fr;
+        flex-direction: column;
+    }
+    .inc-summary-card {
+        flex: 1 1 100%;
+        min-width: 100%;
+    }
     
     /* Stack income filter elements vertically */
     .inc-filter-group,
@@ -4796,6 +4842,17 @@ body { overflow-x: hidden; }
         width: 100%;
     }
     .inc-filter-strip { gap: 10px; }
+    
+    /* Month navigation */
+    .bgt-month-nav {
+        gap: 8px;
+    }
+    .bgt-month-label {
+        font-size: 0.8rem;
+        min-width: 80px;
+    }
+    
+    .bgt-total-spent { font-size: 1.5rem; }
 }
 
 /* ── Subscriptions ── */
@@ -4952,7 +5009,12 @@ body { overflow-x: hidden; }
 
 /* Mobile */
 @media (max-width: 480px) {
-    .ft-toast-container { bottom: 16px; right: 12px; left: 12px; }
+    .ft-toast-container { 
+        right: 12px; 
+        left: 12px; 
+        bottom: 16px; 
+        min-width: unset;
+    }
     .ft-toast { min-width: unset; max-width: 100%; }
 }
 

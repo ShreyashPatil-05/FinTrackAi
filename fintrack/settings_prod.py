@@ -74,6 +74,9 @@ if REDIS_URL:
     SESSION_CACHE_ALIAS = 'default'
 else:
     # Fallback: DB-backed sessions, local memory cache
+    # NOTE: LocMemCache is per-process — rate limiting in accounts/views.py
+    # will not be shared across multiple Gunicorn workers. Set REDIS_URL
+    # in Railway environment variables for reliable rate limiting in production.
     SESSION_ENGINE = 'django.contrib.sessions.backends.db'
     CACHES = {
         'default': {

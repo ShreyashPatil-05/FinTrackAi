@@ -55,14 +55,13 @@ class MyUserCreationForm(UserCreationForm):
         """Validate username is unique and meets requirements"""
         username = self.cleaned_data.get('username')
         if username:
-            # Check if username already exists
             if User.objects.filter(username=username).exists():
                 raise forms.ValidationError("This username is already taken.")
-            # Check username length
             if len(username) < 3:
                 raise forms.ValidationError("Username must be at least 3 characters long.")
-            # Check for valid characters
-            if not username.isalnum() and '_' not in username:
+            # Allow only letters, numbers, and underscores
+            import re
+            if not re.match(r'^[a-zA-Z0-9_]+$', username):
                 raise forms.ValidationError("Username can only contain letters, numbers, and underscores.")
         return username
     

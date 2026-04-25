@@ -1,0 +1,242 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinTrack — Check Your Email</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <script>
+        (function() {
+            var t = localStorage.getItem('ft_theme') || 'light';
+            if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+        })();
+    </script>
+</head>
+<body class="auth-body">
+
+<div class="vp-page">
+
+    <div class="vp-card">
+
+        <!-- Logo -->
+        <a href="/" class="vp-logo">
+            <img src="{% static 'images/logo.png' %}" alt="FinTrack" style="height:36px;">
+            <span class="vp-logo-text">Fin<span style="color:#818cf8;">Track</span></span>
+        </a>
+
+        <!-- Icon -->
+        <div class="vp-icon-wrap">
+            <i class="bi bi-envelope-check-fill"></i>
+        </div>
+
+        <h2 class="vp-title">Check your email</h2>
+        <p class="vp-sub">
+            We sent a verification link to<br>
+            <strong>{{ email }}</strong>
+        </p>
+
+        <div class="vp-steps">
+            <div class="vp-step">
+                <span class="vp-step-num">1</span>
+                <span>Open your email inbox</span>
+            </div>
+            <div class="vp-step">
+                <span class="vp-step-num">2</span>
+                <span>Click the verification link</span>
+            </div>
+            <div class="vp-step">
+                <span class="vp-step-num">3</span>
+                <span>Come back and log in</span>
+            </div>
+        </div>
+
+        <div class="vp-note">
+            <i class="bi bi-clock me-1"></i> Link expires in 24 hours
+        </div>
+
+        <!-- Resend form -->
+        <form method="post" action="{% url 'resend_verification' %}" class="vp-resend-form">
+            {% csrf_token %}
+            <input type="hidden" name="email" value="{{ email }}">
+            <button type="submit" class="vp-btn-resend">
+                <i class="bi bi-arrow-repeat me-1"></i> Resend email
+            </button>
+        </form>
+
+        <a href="{% url 'login' %}" class="vp-login-link">
+            Already verified? Sign in
+        </a>
+
+    </div>
+
+</div>
+
+<style>
+.vp-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    padding: 24px 16px;
+}
+
+[data-theme="dark"] .vp-page { background: #0f172a; }
+
+.vp-card {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 40px 36px;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.08);
+    border: 1px solid #e2e8f0;
+    text-align: center;
+}
+
+[data-theme="dark"] .vp-card {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+}
+
+.vp-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    margin-bottom: 28px;
+}
+
+.vp-logo-text {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+[data-theme="dark"] .vp-logo-text { color: #f1f5f9; }
+
+.vp-icon-wrap {
+    width: 72px;
+    height: 72px;
+    background: linear-gradient(135deg, #ede9fe, #dbeafe);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 2rem;
+    color: #6366f1;
+}
+
+[data-theme="dark"] .vp-icon-wrap {
+    background: rgba(99,102,241,0.15);
+}
+
+.vp-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 10px;
+}
+
+[data-theme="dark"] .vp-title { color: #f1f5f9; }
+
+.vp-sub {
+    font-size: 0.9rem;
+    color: #64748b;
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+
+[data-theme="dark"] .vp-sub { color: #94a3b8; }
+
+.vp-sub strong {
+    color: #1e293b;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .vp-sub strong { color: #e2e8f0; }
+
+.vp-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    text-align: left;
+}
+
+[data-theme="dark"] .vp-steps { background: #0f172a; }
+
+.vp-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.875rem;
+    color: #475569;
+    font-weight: 500;
+}
+
+[data-theme="dark"] .vp-step { color: #94a3b8; }
+
+.vp-step-num {
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.vp-note {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-bottom: 20px;
+}
+
+.vp-resend-form { margin-bottom: 14px; }
+
+.vp-btn-resend {
+    width: 100%;
+    padding: 11px;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.vp-btn-resend:hover { opacity: 0.88; }
+
+.vp-login-link {
+    font-size: 0.85rem;
+    color: #6366f1;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.vp-login-link:hover { text-decoration: underline; }
+
+@media (max-width: 480px) {
+    .vp-card { padding: 28px 20px; }
+    .vp-title { font-size: 1.2rem; }
+}
+</style>
+
+</body>
+</html>

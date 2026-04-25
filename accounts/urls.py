@@ -12,4 +12,5 @@ urlpatterns = [
     path('change-password/', views.change_password_view, name='change_password'),
     path('verify/<uuid:token>/', views.verify_email,     name='verify_email'),
     path('resend-verification/', views.resend_verification, name='resend_verification'),
+    path('verify-pending/',  views.verify_pending,       name='verify_pending'),
 ]

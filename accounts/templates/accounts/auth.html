@@ -172,8 +172,10 @@
                     Don't have an account? <a href="{% url 'register' %}">Sign up free</a>
                     <br><small class="mt-1 d-block">
                         <a href="{% url 'change_password' %}">Forgot password?</a>
+                        {% if show_resend %}
                         <span class="mx-1">|</span>
                         <a href="{% url 'resend_verification' %}">Resend verification</a>
+                        {% endif %}
                     </small>
                 {% elif page_type == "change_password" %}
                     Remembered it? <a href="{% url 'login' %}">Back to login</a>

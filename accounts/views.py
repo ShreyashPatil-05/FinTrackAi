@@ -81,6 +81,18 @@ def _verify_recaptcha(response_token):
 
 
 # ----------------------------
+# VERIFY PENDING VIEW
+# ----------------------------
+def verify_pending(request):
+    """
+    Shown after registration — tells user to check their email.
+    Email is pulled from session so it can be displayed.
+    """
+    email = request.session.get('pending_verification_email', '')
+    return render(request, 'accounts/verify_pending.html', {'email': email})
+
+
+# ----------------------------
 # REGISTER VIEW
 # ----------------------------
 def register_view(request):
@@ -147,9 +159,8 @@ def register_view(request):
                         # Increment rate limit counter
                         cache.set(cache_key, attempts + 1, timeout=3600)
                         
-                        messages.success(request, "Account created! Check your email to verify your account.")
                         logger.info(f"User registered: {user.username} ({user.email})")
-                        
+
                 except IntegrityError as e:
                     logger.error(f"Registration integrity error: {e}")
                     messages.error(request, 'Registration failed. This email or username may already be in use.')
@@ -158,8 +169,10 @@ def register_view(request):
                         "button_text": "Register", "page_type": "register", "hide_auth_nav": True,
                         "recaptcha_site_key": settings.RECAPTCHA_SITE_KEY,
                     })
-                
-                return redirect("login")
+
+                # Redirect to "check your email" page
+                request.session['pending_verification_email'] = user.email
+                return redirect("verify_pending")
             else:
                 messages.error(request, "Registration failed. Please fix the errors.")
 
@@ -355,6 +368,7 @@ def login_view(request):
                         "button_text": "Login",
                         "page_type": "login",
                         "hide_auth_nav": True,
+                        "show_resend": True,
                     })
             except User.DoesNotExist:
                 pass
@@ -513,8 +527,10 @@ def resend_verification(request):
         except Exception as e:
             logger.error(f"Error in resend_verification: {e}", exc_info=True)
             messages.error(request, 'An error occurred. Please try again.')
-        
-        return redirect('login')
+
+        # Go back to verify_pending page
+        request.session['pending_verification_email'] = email
+        return redirect('verify_pending')
     
     # GET request - show form
     return render(request, 'accounts/resend_verification.html', {

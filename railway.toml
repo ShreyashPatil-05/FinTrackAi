@@ -2,6 +2,6 @@
 builder = "nixpacks"
 
 [deploy]
-preDeployCommand = "python manage.py fix_token_table && python manage.py migrate --noinput"
+preDeployCommand = "python manage.py migrate --noinput"
 startCommand = "gunicorn fintrack.wsgi:application --workers 2 --threads 2 --timeout 60 --keep-alive 5 --bind 0.0.0.0:$PORT"
 restartPolicyType = "on_failure"

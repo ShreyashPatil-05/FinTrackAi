@@ -1530,15 +1530,28 @@ body {
 @media (max-width: 768px) {
     .auth-body { overflow: auto; height: auto; }
     .auth-page  { flex-direction: column; height: auto; }
-    .auth-left  { flex: 0 0 auto; padding: 1.2rem 1.5rem; }
-    .auth-left-inner { padding: 1rem 0; flex-direction: row; align-items: center; gap: 12px; justify-content: space-between; }
+    .auth-left  { 
+        flex: 0 0 56px;
+        padding: 0 1.2rem;
+        display: flex;
+        align-items: center;
+    }
+    .auth-left-inner { 
+        padding: 0;
+        flex-direction: row; 
+        align-items: center; 
+        gap: 12px; 
+        justify-content: space-between;
+        width: 100%;
+        height: 56px;
+    }
     .auth-left-content { display: none; }
     .auth-features, .auth-deco-card { display: none; }
     .auth-right { padding: 1.5rem 1.2rem; overflow: visible; }
 }
 
 @media (max-width: 480px) {
-    .auth-left { padding: 1rem 1.2rem; }
+    .auth-left { padding: 0 1rem; }
     .auth-right { padding: 1.2rem 1rem; }
 }
 
@@ -4751,6 +4764,19 @@ body { overflow-x: hidden; }
     .navbar-nav .nav-item.ms-2 { margin-left: 0 !important; }
     .navbar-nav .dropdown-menu { position: static !important; box-shadow: none; border: 1px solid #e2e8f0; margin-top: 4px; }
     .theme-toggle { margin-top: 6px; }
+
+    /* Auth buttons — always side by side in collapsed menu */
+    .nav-auth-btns {
+        display: flex;
+        gap: 8px;
+        padding: 8px 0 4px;
+        width: 100%;
+    }
+    .nav-auth-btns .btn-nav-ghost,
+    .nav-auth-btns .btn-nav-primary {
+        flex: 1;
+        text-align: center;
+    }
 }
 
 /* ── Dashboard ── */

@@ -62,10 +62,8 @@
 
                 {% else %}
                     {% if not hide_auth_nav %}
-                    <li class="nav-item me-2">
+                    <li class="nav-item nav-auth-btns">
                         <a class="btn btn-nav-ghost" href="{% url 'login' %}">Sign In</a>
-                    </li>
-                    <li class="nav-item">
                         <a class="btn btn-nav-primary" href="{% url 'register' %}">Get Started</a>
                     </li>
                     {% endif %}

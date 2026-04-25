@@ -1,7 +1,6 @@
 from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from django.db import connection
 
 from .models import UserProfile, Income, CategoryBudget, Subscription, SavingsGoal, CustomCategory, WebhookToken
 from expenses.models import Expense
@@ -63,32 +62,6 @@ class CustomCategoryInline(admin.TabularInline):
     fields = ('name',)
 
 
-def _cleanup_orphaned_token(user_ids):
-    """
-    Directly delete any rows in accounts_emailverificationtoken for the given
-    user IDs. This handles the case where the table still exists in Postgres
-    but the Django model has been removed, causing FK violations on user delete.
-    Uses raw SQL so it works even when the model no longer exists in Python.
-    """
-    try:
-        with connection.cursor() as cursor:
-            # Check if the table still exists first
-            cursor.execute("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.tables
-                    WHERE table_name = 'accounts_emailverificationtoken'
-                );
-            """)
-            if cursor.fetchone()[0]:
-                placeholders = ','.join(['%s'] * len(user_ids))
-                cursor.execute(
-                    f"DELETE FROM accounts_emailverificationtoken WHERE user_id IN ({placeholders});",
-                    list(user_ids)
-                )
-    except Exception:
-        pass  # table already gone — nothing to do
-
-
 # ── Actions ──────────────────────────────────────────
 
 def deactivate_users(modeladmin, request, queryset):
@@ -117,16 +90,6 @@ class FinTrackUserAdmin(BaseUserAdmin):
     list_display = ('username', 'email', 'date_joined', 'last_login', 'is_active')
     list_filter  = ('is_active', 'is_staff', 'date_joined')
     ordering     = ('date_joined',)
-
-    def delete_queryset(self, request, queryset):
-        """Clean up orphaned token rows before bulk-deleting users."""
-        _cleanup_orphaned_token(list(queryset.values_list('id', flat=True)))
-        super().delete_queryset(request, queryset)
-
-    def delete_model(self, request, obj):
-        """Clean up orphaned token row before deleting a single user."""
-        _cleanup_orphaned_token([obj.id])
-        super().delete_model(request, obj)
 
 
 admin.site.unregister(User)

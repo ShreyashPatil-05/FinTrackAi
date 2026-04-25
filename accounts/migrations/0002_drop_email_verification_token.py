@@ -1,16 +1,40 @@
 from django.db import migrations
 
 
-def remove_stale_migration_record(apps, schema_editor):
+def clear_tokens_and_deactivated_users(apps, schema_editor):
     """
-    If this migration was previously recorded but the table still exists
-    (because the ORM DeleteModel was blocked by a Postgres FK constraint),
-    delete the stale record so the RunSQL below actually executes.
-    This function itself is idempotent — safe to run multiple times.
+    1. Delete all EmailVerificationToken rows (removes FK references).
+    2. Delete any User accounts that are still inactive (is_active=False)
+       — these are leftover unverified registrations from the old flow.
+       Active users and superusers are never touched.
     """
+    db = schema_editor.connection.vendor
+
+    # Delete all token rows first (satisfies FK constraint)
     schema_editor.connection.cursor().execute(
-        "DELETE FROM django_migrations WHERE app = 'accounts' AND name = '0002_drop_email_verification_token';"
+        "DELETE FROM accounts_emailverificationtoken;"
     )
+
+    # Delete leftover inactive non-superuser users
+    schema_editor.connection.cursor().execute(
+        "DELETE FROM auth_user WHERE is_active = false AND is_superuser = false;"
+    )
+
+
+def drop_token_table(apps, schema_editor):
+    """
+    Drop the table using vendor-appropriate SQL.
+    PostgreSQL supports CASCADE; SQLite does not need it (no FK enforcement).
+    """
+    db = schema_editor.connection.vendor
+    if db == 'postgresql':
+        schema_editor.connection.cursor().execute(
+            "DROP TABLE IF EXISTS accounts_emailverificationtoken CASCADE;"
+        )
+    else:
+        schema_editor.connection.cursor().execute(
+            "DROP TABLE IF EXISTS accounts_emailverificationtoken;"
+        )
 
 
 class Migration(migrations.Migration):
@@ -20,12 +44,20 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Step 1: clear any stale record of this migration so RunSQL below always fires
-        migrations.RunPython(remove_stale_migration_record, migrations.RunPython.noop),
+        # Step 1: clear rows so FK constraint is satisfied
+        migrations.RunPython(
+            clear_tokens_and_deactivated_users,
+            reverse_code=migrations.RunPython.noop,
+        ),
 
-        # Step 2: drop the table — CASCADE removes the FK constraint automatically
-        migrations.RunSQL(
-            sql="DROP TABLE IF EXISTS accounts_emailverificationtoken CASCADE;",
-            reverse_sql=migrations.RunSQL.noop,
+        # Step 2: drop the table (vendor-aware)
+        migrations.RunPython(
+            drop_token_table,
+            reverse_code=migrations.RunPython.noop,
+        ),
+
+        # Step 3: tell Django's ORM the model is gone
+        migrations.DeleteModel(
+            name='EmailVerificationToken',
         ),
     ]

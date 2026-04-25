@@ -473,7 +473,7 @@ body {
 @media (max-width: 768px) {
     .db-topbar { flex-direction: column; align-items: flex-start; }
     .db-filter-bar { width: 100%; }
-    .db-fc-input { width: 90px; }
+    .db-fc-input { width: 100%; min-width: 80px; }
     .db-month-label { font-size: 0.9rem; }
     .db-stat-value { font-size: 1.15rem; }
     .db-chart-wrap { height: 200px; }
@@ -3013,8 +3013,27 @@ select.expense-input {
     .stg-nav { flex-direction: row; flex-wrap: wrap; gap: 4px; }
     .stg-nav-item { flex: 1 1 auto; justify-content: center; font-size: .8rem; padding: 8px 10px; }
     .stg-panel-header { flex-wrap: wrap; gap: 8px; }
-    .inc-filter-strip { flex-wrap: wrap; }
-    .inc-filter-group { flex: 1 1 140px; }
+    
+    /* Income filter improvements */
+    .inc-filter-strip { 
+        flex-wrap: wrap; 
+        gap: 8px;
+        padding: 12px 14px;
+    }
+    .inc-filter-group { 
+        flex: 1 1 calc(50% - 4px); 
+        min-width: 130px;
+    }
+    .inc-filter-input {
+        min-width: 100%;
+        font-size: 0.82rem;
+    }
+    .inc-btn-apply,
+    .inc-btn-reset {
+        flex: 1 1 calc(50% - 4px);
+        align-self: stretch;
+    }
+    
     .inc-modal { width: 95vw; max-width: 95vw; }
     .inc-modal-row { flex-direction: column; }
     .bgt-total-card { flex-direction: column; gap: 1rem; }
@@ -4644,10 +4663,31 @@ body { overflow-x: hidden; }
 /* ── Dashboard ── */
 @media (max-width: 768px) {
     /* filter bar wraps nicely */
-    .db-filter-bar { flex-wrap: wrap; gap: 6px; }
-    .db-filter-group { flex: 1 1 140px; }
-    .db-fc-select { flex: 1 1 100px; }
-    .db-fc-btn-apply, .db-fc-btn-reset { flex: 1 1 auto; text-align: center; justify-content: center; }
+    .db-filter-bar { flex-wrap: wrap; gap: 8px; width: 100%; }
+    .db-filter-group { 
+        flex: 1 1 calc(50% - 4px); 
+        min-width: 140px;
+    }
+    .db-filter-label {
+        font-size: 0.7rem;
+        min-width: 32px;
+    }
+    .db-fc-input {
+        width: 100%;
+        font-size: 0.78rem;
+    }
+    .db-fc-select { 
+        flex: 1 1 calc(50% - 4px); 
+        min-width: 100px;
+        font-size: 0.78rem;
+    }
+    .db-fc-btn-apply, .db-fc-btn-reset { 
+        flex: 1 1 calc(50% - 4px); 
+        text-align: center; 
+        justify-content: center;
+        display: flex;
+        align-items: center;
+    }
 
     /* stat cards: 2 per row already via col-6, just tighten padding */
     .db-stat-card { padding: 14px 14px; }
@@ -4669,6 +4709,17 @@ body { overflow-x: hidden; }
     .db-month-label { font-size: .85rem; min-width: 80px; }
     .db-topbar { padding: 8px 12px; }
     .db-card { padding: 14px 14px; }
+    
+    /* Stack filter elements vertically on very small screens */
+    .db-filter-group,
+    .db-fc-select,
+    .db-fc-btn-apply,
+    .db-fc-btn-reset {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+    
+    .db-filter-bar { gap: 8px; }
 }
 
 /* ── Expense List ── */
@@ -4682,15 +4733,45 @@ body { overflow-x: hidden; }
     .el-table th:nth-child(3),
     .el-table td:nth-child(3) { display: none; } /* hide category on very small */
 
-    /* filter card */
-    .el-filter-form { flex-wrap: wrap; }
-    .el-filter-field { flex: 1 1 140px; }
+    /* filter card - improved alignment */
+    .el-filter-form { 
+        flex-wrap: wrap; 
+        gap: 8px;
+    }
+    .el-filter-field { 
+        flex: 1 1 calc(50% - 4px); 
+        min-width: 140px;
+    }
+    .el-filter-input {
+        font-size: 0.78rem;
+    }
+    .el-filter-actions {
+        width: 100%;
+        gap: 8px;
+    }
+    .el-btn-apply,
+    .el-btn-clear,
+    .el-btn-delete-sel {
+        flex: 1 1 calc(50% - 4px);
+        justify-content: center;
+        text-align: center;
+    }
 }
 
 @media (max-width: 480px) {
     .el-btn-add { padding: 7px 12px; font-size: .8rem; }
     .el-month-select, .el-year-select { font-size: .8rem; padding: 4px 6px; }
     .el-summary-item { flex: 1 1 auto; }
+    
+    /* Stack all filter elements vertically on small phones */
+    .el-filter-field,
+    .el-btn-apply,
+    .el-btn-clear,
+    .el-btn-delete-sel {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+    .el-filter-form { gap: 10px; }
 }
 
 /* ── Expense Form ── */
@@ -4706,6 +4787,15 @@ body { overflow-x: hidden; }
     .stg-panel { padding: 16px; }
     .inc-summary-strip { grid-template-columns: 1fr 1fr; }
     .bgt-total-spent { font-size: 1.5rem; }
+    
+    /* Stack income filter elements vertically */
+    .inc-filter-group,
+    .inc-btn-apply,
+    .inc-btn-reset {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+    .inc-filter-strip { gap: 10px; }
 }
 
 /* ── Subscriptions ── */

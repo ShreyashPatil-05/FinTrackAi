@@ -10,7 +10,7 @@
       <div class="sub-page-title"><i class="bi bi-repeat me-2"></i>Subscriptions</div>
       <div class="sub-page-sub">Track your recurring payments in one place.</div>
     </div>
-    <button class="sub-btn-add" onclick="document.getElementById('addSubModal').style.display='flex'">
+    <button class="sub-btn-add" id="openAddSubModal">
       <i class="bi bi-plus-lg me-1"></i> Add Subscription
     </button>
   </div>
@@ -115,7 +115,7 @@
     <div class="sub-empty-icon"><i class="bi bi-repeat"></i></div>
     <div class="sub-empty-title">No subscriptions yet</div>
     <div class="sub-empty-sub">Add your first recurring payment to start tracking.</div>
-    <button class="sub-btn-add mt-3" onclick="document.getElementById('addSubModal').style.display='flex'">
+    <button class="sub-btn-add mt-3" id="openAddSubModalEmpty">
       <i class="bi bi-plus-lg me-1"></i> Add Subscription
     </button>
   </div>
@@ -128,7 +128,7 @@
   <div class="inc-modal" style="max-width:520px;">
     <div class="inc-modal-header" style="background:linear-gradient(135deg,#6366f1,#4f46e5);">
       <span><i class="bi bi-plus-circle me-2"></i>Add Subscription</span>
-      <button class="inc-modal-close" onclick="document.getElementById('addSubModal').style.display='none'">&times;</button>
+      <button class="inc-modal-close" id="closeAddSubModal">&times;</button>
     </div>
     <form method="post" action="{% url 'subscription_add' %}">
       {% csrf_token %}
@@ -169,7 +169,7 @@
         </div>
       </div>
       <div class="inc-modal-footer">
-        <button type="button" class="stg-btn-cancel" onclick="document.getElementById('addSubModal').style.display='none'">Cancel</button>
+        <button type="button" class="stg-btn-cancel" id="cancelAddSubModal">Cancel</button>
         <button type="submit" class="sub-btn-add"><i class="bi bi-check-lg me-1"></i> Save</button>
       </div>
     </form>
@@ -181,7 +181,7 @@
   <div class="inc-modal" style="max-width:520px;">
     <div class="inc-modal-header" style="background:linear-gradient(135deg,#6366f1,#4f46e5);">
       <span><i class="bi bi-pencil me-2"></i>Edit Subscription</span>
-      <button class="inc-modal-close" onclick="document.getElementById('editSubModal').style.display='none'">&times;</button>
+      <button class="inc-modal-close" id="closeEditSubModal">&times;</button>
     </div>
     <form method="post" id="editSubForm" action="">
       {% csrf_token %}
@@ -222,14 +222,28 @@
         </div>
       </div>
       <div class="inc-modal-footer">
-        <button type="button" class="stg-btn-cancel" onclick="document.getElementById('editSubModal').style.display='none'">Cancel</button>
+        <button type="button" class="stg-btn-cancel" id="cancelEditSubModal">Cancel</button>
         <button type="submit" class="sub-btn-add"><i class="bi bi-check-lg me-1"></i> Update</button>
       </div>
     </form>
   </div>
 </div>
 
-<script nonce="{{ request.csp_nonce }}">
+<script>
+  // Open/close Add modal
+  function openAddSub() { document.getElementById('addSubModal').style.display = 'flex'; }
+  function closeAddSub() { document.getElementById('addSubModal').style.display = 'none'; }
+  function closeEditSub() { document.getElementById('editSubModal').style.display = 'none'; }
+
+  document.getElementById('openAddSubModal').addEventListener('click', openAddSub);
+  var emptyBtn = document.getElementById('openAddSubModalEmpty');
+  if (emptyBtn) emptyBtn.addEventListener('click', openAddSub);
+  document.getElementById('closeAddSubModal').addEventListener('click', closeAddSub);
+  document.getElementById('cancelAddSubModal').addEventListener('click', closeAddSub);
+  document.getElementById('closeEditSubModal').addEventListener('click', closeEditSub);
+  document.getElementById('cancelEditSubModal').addEventListener('click', closeEditSub);
+
+  // Edit button — populate and open edit modal
   document.addEventListener('click', function(e) {
     var btn = e.target.closest('.sub-edit-btn');
     if (!btn) return;
@@ -246,6 +260,7 @@
     document.getElementById('editSubModal').style.display = 'flex';
   });
 
+  // Close modals on overlay click
   document.querySelectorAll('.inc-modal-overlay').forEach(function(o) {
     o.addEventListener('click', function(e) { if (e.target === o) o.style.display = 'none'; });
   });

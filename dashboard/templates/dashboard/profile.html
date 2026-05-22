@@ -145,7 +145,7 @@
         </div>
         <div class="prof-info-row">
             <span class="prof-info-label" style="color:#64748b;font-size:0.85rem;">Once deleted, your account and all data cannot be recovered.</span>
-            <button type="button" class="prof-btn-delete" onclick="document.getElementById('deleteModal').style.display='flex'">
+            <button type="button" class="prof-btn-delete" id="openDeleteModal">
                 <i class="bi bi-trash3-fill me-1"></i> Delete Account
             </button>
         </div>
@@ -193,7 +193,7 @@
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                 <button type="button"
-                        onclick="document.getElementById('deleteModal').style.display='none'"
+                        id="cancelDeleteModal"
                         style="padding:10px;border-radius:10px;border:1.5px solid #e2e8f0;background:var(--card,#fff);color:var(--text,#1e293b);font-weight:600;font-size:0.88rem;cursor:pointer;">
                     Cancel
                 </button>
@@ -206,11 +206,21 @@
     </div>
 </div>
 
-<script nonce="{{ request.csp_nonce }}">
+<script>
 document.getElementById('avatarInput').addEventListener('change', function() {
     if (this.files && this.files[0]) {
         document.getElementById('avatarForm').submit();
     }
+});
+var deleteModal = document.getElementById('deleteModal');
+document.getElementById('openDeleteModal').addEventListener('click', function() {
+    deleteModal.style.display = 'flex';
+});
+document.getElementById('cancelDeleteModal').addEventListener('click', function() {
+    deleteModal.style.display = 'none';
+});
+deleteModal.addEventListener('click', function(e) {
+    if (e.target === deleteModal) deleteModal.style.display = 'none';
 });
 </script>
 

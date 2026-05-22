@@ -33,6 +33,11 @@
                 <li class="nav-item">
                     <a class="nav-link px-3 {% if request.resolver_match.url_name == 'savings_goals' or request.resolver_match.url_name == 'savings_goal_detail' %}nav-link-active{% endif %}" href="{% url 'savings_goals' %}">Savings Goals</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link px-3 {% if request.resolver_match.url_name == 'insights' %}nav-link-active{% endif %}" href="{% url 'insights' %}">
+                        <i class="bi bi-stars me-1" style="color:#6366f1;"></i>Insights
+                    </a>
+                </li>
                 <li class="nav-item dropdown ms-2">
                     <a class="nav-link dropdown-toggle d-flex align-items-center gap-2"
                        href="#" role="button" data-bs-toggle="dropdown">

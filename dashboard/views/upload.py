@@ -42,19 +42,25 @@ def settings_upload(request: HttpRequest) -> HttpResponse:
 
         if action == "preview" and request.FILES.get("csv_file"):
             csv_file = request.FILES["csv_file"]
-            try:
-                decoded = csv_file.read().decode("utf-8")
-                reader  = csv.DictReader(io.StringIO(decoded))
-                rows = list(reader)
-                # validate required columns
-                required = {'title', 'category', 'amount', 'date'}
-                if not required.issubset({h.lower().strip() for h in reader.fieldnames or []}):
-                    error = "CSV must have columns: title, category, amount, date"
-                else:
-                    preview = rows[:5]
-                    request.session['csv_data'] = decoded
-            except Exception as e:
-                error = f"Could not read file: {e}"
+            # ── Size limit: 1MB ──
+            if csv_file.size > 1 * 1024 * 1024:
+                error = "CSV too large. Maximum file size is 1MB."
+            else:
+                try:
+                    decoded = csv_file.read().decode("utf-8")
+                    reader  = csv.DictReader(io.StringIO(decoded))
+                    rows = list(reader)
+                    # validate required columns
+                    required = {'title', 'category', 'amount', 'date'}
+                    if not required.issubset({h.lower().strip() for h in reader.fieldnames or []}):
+                        error = "CSV must have columns: title, category, amount, date"
+                    elif len(rows) > 5000:
+                        error = "Too many rows. Maximum 5,000 rows per import."
+                    else:
+                        preview = rows[:5]
+                        request.session['csv_data'] = decoded
+                except Exception as e:
+                    error = f"Could not read file: {e}"
 
         elif action == "import":
             decoded = request.session.pop('csv_data', None)
@@ -65,6 +71,7 @@ def settings_upload(request: HttpRequest) -> HttpResponse:
                 valid_cats = DEFAULT_CATEGORIES + [c for c in custom_cats if c not in DEFAULT_CATEGORIES]
 
                 skipped = []
+                expenses_to_create = []
                 for row_num, row in enumerate(reader, start=2):  # start=2 (row 1 is header)
                     title    = row.get('title', '').strip()
                     amount_s = row.get('amount', '').strip()
@@ -97,15 +104,17 @@ def settings_upload(request: HttpRequest) -> HttpResponse:
                     if cat not in valid_cats:
                         cat = 'Other'
 
-                    Expense.objects.create(
+                    expenses_to_create.append(Expense(
                         user=request.user,
                         title=title,
                         category=cat,
                         amount=amount,
                         date=date_s,
-                    )
-                    imported += 1
+                    ))
 
+                if expenses_to_create:
+                    Expense.objects.bulk_create(expenses_to_create, batch_size=500)
+                imported = len(expenses_to_create)
                 success = True
 
     return render(request, 'dashboard/settings.html', {

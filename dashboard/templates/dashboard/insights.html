@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% load fintrack_filters %}
+
+{% block content %}
+
+<!-- Page Header -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+        <h4 class="fw-bold mb-0">
+            <i class="bi bi-stars me-2" style="color:#6366f1;"></i>AI Financial Insights
+        </h4>
+        <p class="text-muted small mb-0">{{ current_month }} {{ current_year }} — powered by Gemini AI</p>
+    </div>
+    <button class="ins-refresh-btn" id="refreshBtn" onclick="refreshInsights()">
+        <i class="bi bi-arrow-clockwise me-1" id="refreshIcon"></i> Refresh Insights
+    </button>
+</div>
+
+{% if not api_key_set %}
+<div class="ins-api-banner mb-4">
+    <i class="bi bi-info-circle-fill me-2"></i>
+    <span>Gemini API key not configured — showing rule-based insights.
+    Add <code>GEMINI_API_KEY</code> to your environment variables to enable AI insights.</span>
+</div>
+{% endif %}
+
+<!-- ── AI Insight Cards ── -->
+<div class="ins-grid mb-4" id="insightsGrid">
+    {% for ins in insights %}
+    <div class="ins-card ins-card--{{ ins.type }}">
+        <div class="ins-card-icon ins-icon--{{ ins.type }}">
+            <i class="bi bi-{{ ins.icon }}"></i>
+        </div>
+        <div class="ins-card-body">
+            <div class="ins-card-title">{{ ins.title }}</div>
+            <div class="ins-card-text">{{ ins.insight }}</div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="ins-empty">
+        <i class="bi bi-bar-chart-line ins-empty-icon"></i>
+        <p>Add income and expenses to unlock insights.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- ── Month-over-Month Comparison ── -->
+{% if mom %}
+<div class="ins-section-title mb-3">
+    <i class="bi bi-calendar3-range me-2" style="color:#6366f1;"></i>
+    {{ mom.prev_month }} → {{ mom.curr_month }} Comparison
+</div>
+<div class="ins-mom-grid mb-4">
+    <div class="ins-mom-card">
+        <div class="ins-mom-label">Income</div>
+        <div class="ins-mom-curr">{{ mom.income_curr|inr }}</div>
+        <div class="ins-mom-prev">vs {{ mom.income_prev|inr }}</div>
+        <div class="ins-mom-delta {% if mom.income_delta >= 0 %}ins-delta--pos{% else %}ins-delta--neg{% endif %}">
+            <i class="bi bi-arrow-{% if mom.income_delta >= 0 %}up{% else %}down{% endif %}"></i>
+            {{ mom.income_delta|inr }}
+        </div>
+    </div>
+    <div class="ins-mom-card">
+        <div class="ins-mom-label">Spent</div>
+        <div class="ins-mom-curr">{{ mom.spent_curr|inr }}</div>
+        <div class="ins-mom-prev">vs {{ mom.spent_prev|inr }}</div>
+        <div class="ins-mom-delta {% if mom.spent_delta <= 0 %}ins-delta--pos{% else %}ins-delta--neg{% endif %}">
+            <i class="bi bi-arrow-{% if mom.spent_delta <= 0 %}down{% else %}up{% endif %}"></i>
+            {{ mom.spent_delta|inr }}
+        </div>
+    </div>
+    <div class="ins-mom-card">
+        <div class="ins-mom-label">Saved</div>
+        <div class="ins-mom-curr">{{ mom.saved_curr|inr }}</div>
+        <div class="ins-mom-prev">vs {{ mom.saved_prev|inr }}</div>
+        <div class="ins-mom-delta {% if mom.saved_delta >= 0 %}ins-delta--pos{% else %}ins-delta--neg{% endif %}">
+            <i class="bi bi-arrow-{% if mom.saved_delta >= 0 %}up{% else %}down{% endif %}"></i>
+            {{ mom.saved_delta|inr }}
+        </div>
+    </div>
+    <div class="ins-mom-card">
+        <div class="ins-mom-label">Savings Rate</div>
+        <div class="ins-mom-curr">{{ mom.rate_curr }}%</div>
+        <div class="ins-mom-prev">vs {{ mom.rate_prev }}%</div>
+        {% with delta=mom.rate_curr|add:mom.rate_prev %}
+        <div class="ins-mom-delta {% if mom.rate_curr >= mom.rate_prev %}ins-delta--pos{% else %}ins-delta--neg{% endif %}">
+            <i class="bi bi-arrow-{% if mom.rate_curr >= mom.rate_prev %}up{% else %}down{% endif %}"></i>
+            {{ mom.rate_curr }}% vs {{ mom.rate_prev }}%
+        </div>
+        {% endwith %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Budget Status + Anomalies row ── -->
+<div class="row g-3 mb-4">
+
+    {% if budget_status %}
+    <div class="col-lg-6">
+        <div class="ins-panel">
+            <div class="ins-panel-header">
+                <i class="bi bi-wallet2 me-2" style="color:#6366f1;"></i>Budget Status
+            </div>
+            {% for b in budget_status %}
+            <div class="ins-budget-row">
+                <div class="ins-budget-cat">{{ b.category }}</div>
+                <div class="ins-budget-bar-wrap">
+                    <div class="ins-budget-bar ins-bbar--{{ b.status }}"
+                         style="width:{% if b.pct > 100 %}100{% else %}{{ b.pct|floatformat:0 }}{% endif %}%;"></div>
+                </div>
+                <div class="ins-budget-meta">
+                    <span class="ins-budget-pct ins-bpct--{{ b.status }}">{{ b.pct|floatformat:0 }}%</span>
+                    <span class="ins-budget-vals">{{ b.spent|inr }} / {{ b.limit|inr }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if anomalies %}
+    <div class="col-lg-6">
+        <div class="ins-panel">
+            <div class="ins-panel-header">
+                <i class="bi bi-lightning-charge me-2" style="color:#f59e0b;"></i>Unusual Expenses
+            </div>
+            {% for a in anomalies %}
+            <div class="ins-anomaly-row">
+                <div class="ins-anomaly-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <div class="ins-anomaly-info">
+                    <div class="ins-anomaly-title">{{ a.title }}</div>
+                    <div class="ins-anomaly-meta">{{ a.category }} · {{ a.date }}</div>
+                </div>
+                <div class="ins-anomaly-right">
+                    <div class="ins-anomaly-amt">{{ a.amount|inr }}</div>
+                    <div class="ins-anomaly-mult">{{ a.multiplier }}× avg</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- ── Savings Goals Progress ── -->
+{% if goals %}
+<div class="ins-section-title mb-3">
+    <i class="bi bi-piggy-bank me-2" style="color:#16a34a;"></i>Savings Goals Progress
+</div>
+<div class="ins-goals-grid mb-4">
+    {% for g in goals %}
+    <div class="ins-goal-card">
+        <div class="ins-goal-header">
+            <span class="ins-goal-name">{{ g.name }}</span>
+            <span class="ins-goal-pct {% if g.pct >= 100 %}ins-goal-done{% endif %}">{{ g.pct }}%</span>
+        </div>
+        <div class="ins-goal-bar-track">
+            <div class="ins-goal-bar-fill {% if g.pct >= 100 %}ins-goal-bar--done{% endif %}"
+                 style="width:{{ g.pct|floatformat:0 }}%;max-width:100%;"></div>
+        </div>
+        <div class="ins-goal-meta">
+            <span>{{ g.saved|inr }} saved</span>
+            <span>{{ g.remaining|inr }} left</span>
+        </div>
+        {% if g.target_date %}
+        <div class="ins-goal-date"><i class="bi bi-calendar3 me-1"></i>Target: {{ g.target_date }}</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- ── 3-Month Spending Trend ── -->
+{% if monthly_data %}
+<div class="ins-section-title mb-3">
+    <i class="bi bi-bar-chart me-2" style="color:#6366f1;"></i>3-Month Spending Trend
+</div>
+<div class="ins-panel mb-4">
+    <div style="height:220px;position:relative;">
+        <canvas id="trendChart"></canvas>
+    </div>
+</div>
+{% endif %}
+
+<!-- Footer -->
+<div class="ins-footer">
+    {% if ai_used %}
+    <i class="bi bi-stars me-1" style="color:#6366f1;"></i>
+    Insights generated by <strong>Gemini AI</strong> based on your last 3 months of data.
+    {% else %}
+    <i class="bi bi-bar-chart-line me-1"></i>
+    Rule-based insights — add <code>GEMINI_API_KEY</code> to enable AI-powered analysis.
+    {% endif %}
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+        integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g"
+        crossorigin="anonymous"></script>
+
+<script nonce="{{ request.csp_nonce }}">
+// ── Trend Chart ──────────────────────────────────────────────────────────────
+(function() {
+    var ctx = document.getElementById('trendChart');
+    if (!ctx) return;
+    var labels  = {{ monthly_data|json_monthly_labels }};
+    var income  = {{ monthly_data|json_monthly_income }};
+    var spent   = {{ monthly_data|json_monthly_spent }};
+    var saved   = {{ monthly_data|json_monthly_saved }};
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Income',
+                    data: income,
+                    backgroundColor: 'rgba(99,102,241,0.7)',
+                    borderRadius: 6,
+                    borderSkipped: false,
+                },
+                {
+                    label: 'Spent',
+                    data: spent,
+                    backgroundColor: 'rgba(239,68,68,0.7)',
+                    borderRadius: 6,
+                    borderSkipped: false,
+                },
+                {
+                    label: 'Saved',
+                    data: saved,
+                    backgroundColor: 'rgba(22,163,74,0.7)',
+                    borderRadius: 6,
+                    borderSkipped: false,
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 16 } },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleColor: '#94a3b8',
+                    bodyColor: '#f1f5f9',
+                    padding: 10,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: function(ctx) {
+                            return '  ' + ctx.dataset.label + ': ' + inrJS(ctx.parsed.y);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, border: { display: false }, ticks: { color: '#94a3b8' } },
+                y: {
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    border: { display: false },
+                    ticks: { color: '#94a3b8', callback: function(v) { return inrJS(v); } }
+                }
+            }
+        }
+    });
+})();
+
+// ── Refresh Insights ─────────────────────────────────────────────────────────
+function refreshInsights() {
+    var btn  = document.getElementById('refreshBtn');
+    var icon = document.getElementById('refreshIcon');
+    btn.disabled = true;
+    icon.className = 'bi bi-arrow-clockwise me-1 spin';
+
+    fetch(window.location.href, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var grid = document.getElementById('insightsGrid');
+        grid.innerHTML = '';
+        data.insights.forEach(function(ins) {
+            var card = document.createElement('div');
+            card.className = 'ins-card ins-card--' + ins.type;
+            card.innerHTML =
+                '<div class="ins-card-icon ins-icon--' + ins.type + '">' +
+                    '<i class="bi bi-' + ins.icon + '"></i>' +
+                '</div>' +
+                '<div class="ins-card-body">' +
+                    '<div class="ins-card-title">' + ins.title + '</div>' +
+                    '<div class="ins-card-text">' + ins.insight + '</div>' +
+                '</div>';
+            grid.appendChild(card);
+        });
+    })
+    .catch(function(e) { console.error(e); })
+    .finally(function() {
+        btn.disabled = false;
+        icon.className = 'bi bi-arrow-clockwise me-1';
+    });
+}
+</script>
+
+{% endblock %}

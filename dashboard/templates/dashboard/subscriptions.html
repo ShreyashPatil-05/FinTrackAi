@@ -229,7 +229,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
   document.addEventListener('click', function(e) {
     var btn = e.target.closest('.sub-edit-btn');
     if (!btn) return;

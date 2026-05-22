@@ -10,31 +10,30 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
 from django.contrib import messages
-from django.db.models import Sum
 from django.http import HttpRequest, HttpResponse
 
 from ..models import Income
-from ..utils import get_month_navigation
+from ..utils import get_month_navigation, get_available_years
+from ..services.income_service import get_income_entries, get_income_summary
 
 
 @login_required(login_url='login')
 def settings_income(request: HttpRequest) -> HttpResponse:
     """
     Income management page with month/year navigation.
-    
+
     Features:
         - List income entries for selected month
         - Filter by source type
         - Month/year navigation
         - Total amount and record count
-        
+
     Args:
         request: Django HttpRequest object
-        
+
     Returns:
         HttpResponse: Income settings page
     """
-    
     today = date.today()
 
     # Month/year navigation using utility
@@ -42,16 +41,9 @@ def settings_income(request: HttpRequest) -> HttpResponse:
     view_month = nav['view_month']
     view_year = nav['view_year']
 
-    # Base queryset for selected month
-    qs = Income.objects.filter(user=request.user, date__month=view_month, date__year=view_year)
-
-    # Optional filters for browsing
     source_q = request.GET.get('source', '')
-    if source_q:
-        qs = qs.filter(source__icontains=source_q)
-
-    total_amount  = float(qs.aggregate(Sum('amount'))['amount__sum'] or 0)
-    total_records = qs.count()
+    qs = get_income_entries(request.user, view_month, view_year, source_q=source_q)
+    summary = get_income_summary(request.user, view_month, view_year)
 
     # Default date = today if on current month, else 1st of selected month
     if view_month == today.month and view_year == today.year:
@@ -62,8 +54,8 @@ def settings_income(request: HttpRequest) -> HttpResponse:
     return render(request, 'dashboard/settings.html', {
         'section': 'income',
         'incomes': qs,
-        'total_amount': total_amount,
-        'total_records': total_records,
+        'total_amount': summary['total_amount'],
+        'total_records': summary['total_records'],
         'source_q': source_q,
         'source_choices': Income.SOURCE_CHOICES,
         'view_month': view_month,
@@ -81,17 +73,17 @@ def settings_income(request: HttpRequest) -> HttpResponse:
 def income_add(request: HttpRequest) -> HttpResponse:
     """
     Add a new income entry.
-    
+
     Args:
         request: Django HttpRequest object
-        
+
     Returns:
         HttpResponse: Redirect to income settings
     """
     if request.method == 'POST':
         try:
-            inc_date = request.POST['date']
-            amount = Decimal(request.POST['amount'])
+            inc_date = request.POST.get('date', '').strip()
+            amount = Decimal(request.POST.get('amount', '0'))
             if amount <= 0:
                 messages.error(request, 'Amount must be greater than zero.')
                 return redirect('settings_income')
@@ -115,25 +107,25 @@ def income_add(request: HttpRequest) -> HttpResponse:
 def income_edit(request: HttpRequest, pk: int) -> HttpResponse:
     """
     Edit an existing income entry.
-    
+
     Args:
         request: Django HttpRequest object
         pk: Primary key of income entry
-        
+
     Returns:
         HttpResponse: Redirect to income settings
     """
     income = get_object_or_404(Income, pk=pk, user=request.user)
     if request.method == 'POST':
         try:
-            amount = Decimal(request.POST['amount'])
+            amount = Decimal(request.POST.get('amount', '0'))
             if amount <= 0:
                 messages.error(request, 'Amount must be greater than zero.')
                 return redirect('settings_income')
-            income.date        = request.POST['date']
-            income.source      = request.POST.get('source', income.source)
+            income.date = request.POST.get('date', '').strip()
+            income.source = request.POST.get('source', income.source)
             income.description = request.POST.get('description', '').strip()
-            income.amount      = amount
+            income.amount = amount
             income.save()
             messages.success(request, 'Income updated.')
         except (InvalidOperation, KeyError):
@@ -143,16 +135,8 @@ def income_edit(request: HttpRequest, pk: int) -> HttpResponse:
 
 @login_required(login_url='login')
 def income_delete(request: HttpRequest, pk: int) -> HttpResponse:
-    """
-    Delete an income entry.
-    
-    Args:
-        request: Django HttpRequest object
-        pk: Primary key of income entry
-        
-    Returns:
-        HttpResponse: Redirect to income settings
-    """
-    Income.objects.filter(pk=pk, user=request.user).delete()
+    """Delete an income entry."""
+    income = get_object_or_404(Income, pk=pk, user=request.user)
+    income.delete()
     messages.success(request, 'Income entry deleted.')
     return redirect('settings_income')

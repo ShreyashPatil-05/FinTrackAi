@@ -101,13 +101,6 @@ class LoginForm(forms.Form):
 
 class ChangePasswordForm(forms.Form):
 
-    username = forms.CharField(
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Enter your username'
-        })
-    )
-
     current_password = forms.CharField(
         label="Current Password",
         widget=forms.PasswordInput(attrs={

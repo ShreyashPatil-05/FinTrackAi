@@ -10,7 +10,6 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
 from django.contrib import messages
-from django.db.models import Sum
 from django.http import HttpRequest, HttpResponse
 from django.core.paginator import Paginator
 from datetime import date
@@ -18,7 +17,7 @@ from calendar import month_name
 
 from .models import Expense, DEFAULT_CATEGORIES
 from .forms import ExpenseForm, get_category_choices
-from dashboard.utils import get_month_navigation, get_available_years
+from dashboard.utils import get_month_navigation, get_available_years, get_sum_amount
 
 
 def _all_categories(user):
@@ -79,7 +78,7 @@ def expense_list(request: HttpRequest) -> HttpResponse:
     if selected_categories:
         expenses = expenses.filter(category__in=selected_categories)
 
-    total = expenses.aggregate(Sum('amount'))['amount__sum'] or 0
+    total = get_sum_amount(expenses)
     count = expenses.count()
 
     # Pagination — user-selectable page size

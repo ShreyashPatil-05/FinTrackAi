@@ -78,7 +78,7 @@
     <!-- Custom JS -->
     <script src="{% static 'js/filters.js' %}"></script>
 
-    <script>
+    <script nonce="{{ request.csp_nonce }}">
       (function() {
         var saved = localStorage.getItem('ft_theme') || 'light';
         if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
@@ -103,7 +103,7 @@
         });
       });
     </script>
-    <script>
+    <script nonce="{{ request.csp_nonce }}">
       // Dynamic category colors for unknown/custom categories
       document.addEventListener('DOMContentLoaded', function() {
         var PALETTE = [

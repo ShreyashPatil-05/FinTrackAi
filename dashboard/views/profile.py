@@ -49,13 +49,11 @@ def profile(request: HttpRequest) -> HttpResponse:
 
                 header = avatar_file.read(12)
                 avatar_file.seek(0)
-                allowed_signatures = [
-                    b'\xff\xd8\xff',
-                    b'\x89PNG\r\n\x1a\n',
-                    b'GIF87a', b'GIF89a',
-                    b'RIFF',
-                ]
-                if not any(header.startswith(sig) for sig in allowed_signatures):
+                is_jpeg = header[:3] == b'\xff\xd8\xff'
+                is_png  = header[:8] == b'\x89PNG\r\n\x1a\n'
+                is_gif  = header[:6] in (b'GIF87a', b'GIF89a')
+                is_webp = header[:4] == b'RIFF' and header[8:12] == b'WEBP'
+                if not (is_jpeg or is_png or is_gif or is_webp):
                     messages.error(request, 'Invalid file type. Only JPEG, PNG, GIF and WebP are allowed.')
                     return redirect('profile')
 
@@ -88,7 +86,12 @@ def profile(request: HttpRequest) -> HttpResponse:
             user.first_name = request.POST.get("first_name", "").strip()
             user.last_name  = request.POST.get("last_name", "").strip()
             user.username   = new_username
-            user.email      = request.POST.get("email", "").strip()
+            new_email = request.POST.get("email", "").strip()
+            if new_email and new_email != user.email:
+                if User.objects.exclude(pk=user.pk).filter(email=new_email).exists():
+                    messages.error(request, 'That email address is already in use.')
+                    return redirect('profile')
+                user.email = new_email
             user.save()
             success = True
 
@@ -101,25 +104,27 @@ def profile(request: HttpRequest) -> HttpResponse:
 @login_required(login_url='login')
 def delete_account(request: HttpRequest) -> HttpResponse:
     """
-    Delete user account with password confirmation.
-    
-    Security:
-        - Requires password verification
-        - Logs user out before deletion
-        - Cascades to all related data
-        
-    Args:
-        request: Django HttpRequest object
-        
-    Returns:
-        HttpResponse: Redirect to landing page or profile
+    Delete user account with confirmation.
+
+    - Regular users: must confirm with their password
+    - OAuth users (no usable password): just confirm intent via checkbox
     """
     if request.method == 'POST':
-        password = request.POST.get('confirm_password', '')
-        if not request.user.check_password(password):
-            messages.error(request, 'Incorrect password. Account not deleted.')
-            return redirect('profile')
         user = request.user
+
+        if user.has_usable_password():
+            # Regular account — verify password
+            password = request.POST.get('confirm_password', '')
+            if not user.check_password(password):
+                messages.error(request, 'Incorrect password. Account not deleted.')
+                return redirect('profile')
+        else:
+            # OAuth account — verify confirmation checkbox
+            confirmed = request.POST.get('confirm_delete', '')
+            if confirmed != 'yes':
+                messages.error(request, 'Please confirm account deletion.')
+                return redirect('profile')
+
         auth_logout(request)
         user.delete()
         messages.success(request, 'Your account has been deleted.')

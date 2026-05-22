@@ -43,3 +43,23 @@ def inr(value):
 def split(value, delimiter=','):
     """Split a string by delimiter — e.g. '10,20,50'|split:',' """
     return str(value).split(delimiter)
+
+
+import json as _json
+
+@register.filter
+def json_monthly_labels(monthly_data):
+    """Extract month labels from monthly_data for Chart.js"""
+    return _json.dumps([f"{m['month'][:3]} {m['year']}" for m in monthly_data])
+
+@register.filter
+def json_monthly_income(monthly_data):
+    return _json.dumps([m['income'] for m in monthly_data])
+
+@register.filter
+def json_monthly_spent(monthly_data):
+    return _json.dumps([m['spent'] for m in monthly_data])
+
+@register.filter
+def json_monthly_saved(monthly_data):
+    return _json.dumps([m['saved'] for m in monthly_data])

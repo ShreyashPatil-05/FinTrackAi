@@ -239,7 +239,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 document.querySelectorAll('.sg-fill--active[data-pct]').forEach(el => {
   el.style.width = el.dataset.pct + '%';
 });

@@ -2,18 +2,17 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from django.core.cache import cache
 from django.core.mail import send_mail
 from django.conf import settings
 from django.urls import reverse
-from django.utils import timezone
-from django.db import transaction, IntegrityError
+from django.db import IntegrityError
 import logging
 import threading
 import os
-from datetime import timedelta
 
 # Optional: SendGrid for production email
 try:
@@ -24,7 +23,13 @@ except ImportError:
     SENDGRID_AVAILABLE = False
 
 from .forms import MyUserCreationForm, LoginForm, ChangePasswordForm
-from .models import EmailVerificationToken
+from .services.auth_service import (
+    check_register_rate_limit,
+    increment_register_rate_limit,
+    create_user_with_token,
+    verify_email_token,
+    resend_verification_token,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,44 +37,47 @@ logger = logging.getLogger(__name__)
 def _get_client_ip(request):
     """
     Extract the client's IP address from the request.
-    
-    Handles X-Forwarded-For header for proxied requests (Railway, Heroku, etc.)
-    Takes the first IP in the chain if multiple proxies are present.
-    
+
+    Uses the rightmost IP in X-Forwarded-For, which is set by the trusted
+    proxy (Railway) and cannot be spoofed by the client. Falls back to
+    REMOTE_ADDR if the header is absent.
+
     Args:
         request: Django HttpRequest object
-        
+
     Returns:
         str: Client IP address
     """
     x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded:
-        return x_forwarded.split(',')[0].strip()
+        # Rightmost IP is appended by our trusted proxy — not client-controlled
+        ips = [ip.strip() for ip in x_forwarded.split(',')]
+        return ips[-1]
     return request.META.get('REMOTE_ADDR', '')
 
 
 def _verify_recaptcha(response_token):
     """
     Verify reCAPTCHA token with Google's API.
-    
+
     Args:
         response_token: reCAPTCHA response token from client
-        
+
     Returns:
         bool: True if verification successful, False otherwise
-        
+
     Note:
         Returns True if RECAPTCHA_SECRET_KEY is not configured (dev fallback)
     """
     import urllib.request
     import urllib.parse
     import json
-    
+
     if not settings.RECAPTCHA_SECRET_KEY:
         return True  # skip verification if key not configured (dev fallback)
     try:
         data = urllib.parse.urlencode({
-            'secret':   settings.RECAPTCHA_SECRET_KEY,
+            'secret': settings.RECAPTCHA_SECRET_KEY,
             'response': response_token,
         }).encode()
         req = urllib.request.Request('https://www.google.com/recaptcha/api/siteverify', data=data)
@@ -98,17 +106,17 @@ def verify_pending(request):
 def register_view(request):
     """
     Handle user registration with email verification and reCAPTCHA.
-    
+
     Features:
         - Rate limiting (3 attempts per IP per hour)
         - reCAPTCHA verification
         - Email verification token generation
         - Background email sending
         - Transaction safety to prevent race conditions
-        
+
     Args:
         request: Django HttpRequest object
-        
+
     Returns:
         HttpResponse: Registration form or redirect to login on success
     """
@@ -116,12 +124,10 @@ def register_view(request):
 
     if request.method == "POST":
         try:
-            # Rate limit: max 3 registrations per IP per hour
             ip = _get_client_ip(request)
-            cache_key = f'register_attempts_{ip}'
-            attempts = cache.get(cache_key, 0)
+            allowed, attempts = check_register_rate_limit(ip)
 
-            if attempts >= 3:
+            if not allowed:
                 messages.error(request, 'Too many registration attempts. Please try again in an hour.')
                 return render(request, "accounts/auth.html", {
                     "form": form, "page_title": "Create Account",
@@ -140,26 +146,11 @@ def register_view(request):
                         "recaptcha_site_key": settings.RECAPTCHA_SITE_KEY,
                     })
 
-                # Use transaction to prevent race conditions
                 try:
-                    with transaction.atomic():
-                        user = form.save(commit=False)
-                        user.is_active = False
-                        user.save()
-
-                        # Delete any existing tokens for this user (shouldn't exist, but safety)
-                        EmailVerificationToken.objects.filter(user=user).delete()
-                        
-                        # Create new verification token
-                        token_obj = EmailVerificationToken.objects.create(user=user)
-                        
-                        # Send verification email
-                        _send_verification_email(request, user, token_obj.token)
-                        
-                        # Increment rate limit counter
-                        cache.set(cache_key, attempts + 1, timeout=3600)
-                        
-                        logger.info(f"User registered: {user.username} ({user.email})")
+                    user, token_obj = create_user_with_token(form)
+                    _send_verification_email(request, user, token_obj.token)
+                    increment_register_rate_limit(ip, attempts)
+                    logger.info(f"User registered: {user.username} ({user.email})")
 
                 except IntegrityError as e:
                     logger.error(f"Registration integrity error: {e}")
@@ -170,7 +161,6 @@ def register_view(request):
                         "recaptcha_site_key": settings.RECAPTCHA_SITE_KEY,
                     })
 
-                # Redirect to "check your email" page
                 request.session['pending_verification_email'] = user.email
                 return redirect("verify_pending")
             else:
@@ -198,15 +188,15 @@ def register_view(request):
 def _send_verification_email(request, user, token):
     """
     Send email verification link to user in a background thread.
-    
+
     Uses SendGrid HTTP API (not SMTP) to avoid Railway port blocking.
     Falls back to SMTP for local development.
-    
+
     Args:
         request: Django HttpRequest (for building absolute URL)
         user: Django User object
         token: UUID verification token
-        
+
     Returns:
         None (email sent asynchronously)
     """
@@ -224,12 +214,11 @@ def _send_verification_email(request, user, token):
 
     def _send():
         try:
-            logger.info(f"Attempting to send email to {user.email}")
-            
-            # Get SendGrid API key from environment
+            masked = user.email[:2] + '***@' + user.email.split('@')[1]
+            logger.info(f"Sending verification email to {masked} (user_id={user.pk})")
+
             sendgrid_api_key = os.environ.get('EMAIL_HOST_PASSWORD', '')
-            
-            # Use SendGrid HTTP API if API key is present
+
             if sendgrid_api_key and sendgrid_api_key.startswith('SG.') and SENDGRID_AVAILABLE:
                 logger.info("Using SendGrid HTTP API")
                 try:
@@ -237,24 +226,23 @@ def _send_verification_email(request, user, token):
                     to_email = To(user.email)
                     content = Content("text/plain", message)
                     mail = Mail(from_email, to_email, subject, content)
-                    
+
                     sg = SendGridAPIClient(sendgrid_api_key)
                     response = sg.client.mail.send.post(request_body=mail.get())
-                    
+
                     logger.info(f"SendGrid API response: {response.status_code}")
                     if response.status_code in [200, 201, 202]:
-                        logger.info(f"Email sent successfully to {user.email} via SendGrid API")
+                        logger.info(f"Email sent via SendGrid (user_id={user.pk})")
                     else:
-                        logger.error(f"SendGrid API error: {response.status_code} - {response.body}")
+                        logger.error(f"SendGrid error: {response.status_code}")
                 except Exception as e:
                     logger.error(f"SendGrid API error: {e}", exc_info=True)
                     raise
             else:
-                # Fall back to SMTP for local development
                 logger.info("Using SMTP (local development)")
                 send_mail(subject, message, None, [user.email], fail_silently=False)
-                logger.info(f"Email sent successfully to {user.email} via SMTP")
-                
+                logger.info(f"Email sent via SMTP (user_id={user.pk})")
+
         except Exception as e:
             logger.error(f"Background email send failed for {user.username}: {e}", exc_info=True)
 
@@ -265,63 +253,38 @@ def _send_verification_email(request, user, token):
 def verify_email(request, token):
     """
     Verify user's email address using the token from the verification link.
-    
+
     Rate limited to 10 attempts per IP per hour to prevent brute force attacks.
-    
-    Validates:
-        - Token exists in database
-        - Token is less than 24 hours old
-        
-    On success:
-        - Activates user account
-        - Deletes verification token
-        
+
     Args:
         request: Django HttpRequest object
         token: UUID token from URL parameter
-        
+
     Returns:
         HttpResponse: Redirect to login with success/error message
     """
-    # Rate limit: max 10 verification attempts per IP per hour
     ip = _get_client_ip(request)
-    cache_key = f'verify_attempts_{ip}'
-    attempts = cache.get(cache_key, 0)
-    
-    if attempts >= 10:
+    success, error_msg = verify_email_token(token, ip)
+
+    if error_msg == 'rate_limited':
         messages.error(request, 'Too many verification attempts. Please try again in an hour.')
         logger.warning(f"Rate limit exceeded for verification from IP: {ip}")
         return redirect('login')
-    
-    try:
-        token_obj = EmailVerificationToken.objects.get(token=token)
 
-        # Check if token is expired
-        if token_obj.is_expired():
-            token_obj.delete()
-            messages.error(request, 'Verification link has expired. Please use the resend verification option.')
-            return redirect('resend_verification')
-
-        # Activate user
-        user = token_obj.user
-        user.is_active = True
-        user.save(update_fields=['is_active'])
-        
-        # Delete token after successful verification
-        token_obj.delete()
-        
+    if success:
         messages.success(request, "Email verified! You can now log in.")
-        logger.info(f"Email verified for user: {user.username}")
-        
-    except EmailVerificationToken.DoesNotExist:
-        # Increment rate limit counter
-        cache.set(cache_key, attempts + 1, timeout=3600)
+        return redirect("login")
+
+    if error_msg == 'expired':
+        messages.error(request, 'Verification link has expired. Please use the resend verification option.')
+        return redirect('resend_verification')
+    elif error_msg == 'invalid':
         messages.error(request, "Invalid or expired verification link.")
         logger.warning(f"Invalid verification token attempted: {token}")
-    except Exception as e:
-        logger.error(f"Error during email verification: {e}", exc_info=True)
+    else:
         messages.error(request, "An error occurred during verification. Please try again.")
-    
+        logger.error(f"Error during email verification for token: {token}")
+
     return redirect("login")
 
 
@@ -332,31 +295,30 @@ def verify_email(request, token):
 def login_view(request):
     """
     Handle user authentication and login.
-    
+
     Features:
         - Username/password authentication
         - Session creation on success
         - Redirect to dashboard after login
-        
+
     Args:
         request: Django HttpRequest object
-        
+
     Returns:
         HttpResponse: Login form or redirect to dashboard on success
     """
-
     form = LoginForm(request.POST or None)
 
     if request.method == "POST":
         if form.is_valid():
-
             username = form.cleaned_data.get("username")
             password = form.cleaned_data.get("password")
 
-            # Check if user exists but is inactive (unverified email)
-            try:
-                unverified_user = User.objects.get(username=username)
-                if not unverified_user.is_active and unverified_user.check_password(password):
+            user = authenticate(request, username=username, password=password)
+
+            if user is not None:
+                if not user.is_active:
+                    # Account exists and password is correct but email not verified
                     messages.error(
                         request,
                         'Your email address is not verified. Please check your inbox or '
@@ -370,12 +332,6 @@ def login_view(request):
                         "hide_auth_nav": True,
                         "show_resend": True,
                     })
-            except User.DoesNotExist:
-                pass
-
-            user = authenticate(request, username=username, password=password)
-
-            if user:
                 login(request, user)
                 return redirect("dashboard")
             else:
@@ -386,8 +342,7 @@ def login_view(request):
         "page_title": "Welcome Back",
         "button_text": "Login",
         "page_type": "login",
-        "hide_auth_nav": True
-
+        "hide_auth_nav": True,
     }
 
     return render(request, "accounts/auth.html", context)
@@ -399,69 +354,65 @@ def login_view(request):
 def logout_view(request):
     """
     Log out the current user and destroy their session.
-    
+
     Only accepts POST requests for security (prevents CSRF logout attacks).
-    
+
     Args:
         request: Django HttpRequest object
-        
+
     Returns:
         HttpResponse: Redirect to login page
     """
-    if request.method == 'POST':
-        logout(request)
+    logout(request)
     return redirect("login")
+
+
+logout_view = require_POST(logout_view)
 
 
 # ----------------------------
 # CHANGE PASSWORD VIEW
 # ----------------------------
 @never_cache
+@login_required(login_url='login')
 def change_password_view(request):
     """
-    Allow users to change their password with current password verification.
-    
-    Security features:
-        - Requires current password verification
-        - Same error message for wrong password and non-existent user
-          (prevents username enumeration)
-        - Forces re-login after password change
-        
-    Args:
-        request: Django HttpRequest object
-        
-    Returns:
-        HttpResponse: Password change form or redirect to login on success
+    Allow authenticated users to change their own password.
+
+    Security:
+        - Requires login (cannot be used unauthenticated)
+        - Uses request.user — never trusts username from POST body
+        - Invalidates other sessions after password change
+        - Same error message prevents username enumeration
     """
-    form = ChangePasswordForm(request.POST or None)
+    from django.contrib.auth import update_session_auth_hash
 
     if request.method == "POST":
-        if form.is_valid():
-            username         = form.cleaned_data.get("username")
-            current_password = form.cleaned_data.get("current_password")
-            new_password     = form.cleaned_data.get("new_password1")
-            try:
-                user = User.objects.get(username=username)
-                if not user.check_password(current_password):
-                    messages.error(request, "Current password is incorrect.")
-                else:
-                    user.set_password(new_password)
-                    user.save()
-                    messages.success(request, "Password changed successfully. Please log in.")
-                    return redirect("login")
-            except User.DoesNotExist:
-                # Same message as wrong password — prevents username enumeration
-                messages.error(request, "Current password is incorrect.")
+        current_password = request.POST.get("current_password", "")
+        new_password1    = request.POST.get("new_password1", "")
+        new_password2    = request.POST.get("new_password2", "")
+
+        if not request.user.check_password(current_password):
+            messages.error(request, "Current password is incorrect.")
+        elif new_password1 != new_password2:
+            messages.error(request, "New passwords do not match.")
+        elif len(new_password1) < 8:
+            messages.error(request, "New password must be at least 8 characters.")
+        else:
+            request.user.set_password(new_password1)
+            request.user.save()
+            # Keep current session valid, invalidate all other sessions
+            update_session_auth_hash(request, request.user)
+            messages.success(request, "Password changed successfully.")
+            return redirect("profile")
 
     context = {
-        "form": form,
         "page_title": "Change Password",
         "button_text": "Update Password",
         "page_type": "change_password",
         "hide_auth_nav": True,
     }
     return render(request, "accounts/auth.html", context)
-
 
 
 # ----------------------------
@@ -471,67 +422,56 @@ def change_password_view(request):
 def resend_verification(request):
     """
     Resend email verification link to users who didn't receive it.
-    
+
     Features:
         - Rate limiting (3 resends per email per hour)
         - Doesn't reveal if email exists (security)
         - Creates new token and deletes old one
-        
+
     Args:
         request: Django HttpRequest object
-        
+
     Returns:
         HttpResponse: Resend form or redirect to login on success
     """
     if request.method == 'POST':
         email = request.POST.get('email', '').strip().lower()
-        
+
         if not email:
             messages.error(request, 'Please enter your email address.')
             return render(request, 'accounts/resend_verification.html')
-        
+
         try:
-            # Find inactive user with this email
-            user = User.objects.get(email=email, is_active=False)
-            
-            # Rate limit: max 3 resends per email per hour
-            cache_key = f'resend_verification_{user.id}'
-            attempts = cache.get(cache_key, 0)
-            
-            if attempts >= 3:
-                # Don't reveal if email exists - same message
+            # Rate limit by IP — max 5 resends per IP per hour
+            ip = _get_client_ip(request)
+            ip_key = f'resend_ip_{ip}'
+            ip_attempts = cache.get(ip_key, 0)
+            if ip_attempts >= 5:
                 messages.info(request, 'If that email is registered and unverified, a verification link has been sent.')
-                logger.warning(f"Resend rate limit exceeded for user: {user.username}")
                 return redirect('login')
-            
-            # Delete old token and create new one
-            with transaction.atomic():
-                EmailVerificationToken.objects.filter(user=user).delete()
-                token_obj = EmailVerificationToken.objects.create(user=user)
-                
-                # Send verification email
+
+            # Increment BEFORE sending to prevent race conditions
+            cache.set(ip_key, ip_attempts + 1, timeout=3600)
+
+            try:
+                user, token_obj = resend_verification_token(email)
                 _send_verification_email(request, user, token_obj.token)
-                
-                # Increment rate limit counter
-                cache.set(cache_key, attempts + 1, timeout=3600)
-                
-                logger.info(f"Verification email resent to: {user.username}")
-            
-            # Don't reveal if email exists - same message for security
+                logger.info(f"Verification email resent (user_id={user.pk})")
+            except User.DoesNotExist:
+                raise
+
             messages.success(request, 'If that email is registered and unverified, a verification link has been sent. Check your inbox.')
-            
+
         except User.DoesNotExist:
-            # Don't reveal if email exists - same message for security
             messages.success(request, 'If that email is registered and unverified, a verification link has been sent. Check your inbox.')
             logger.info(f"Resend verification attempted for non-existent email: {email}")
         except Exception as e:
             logger.error(f"Error in resend_verification: {e}", exc_info=True)
             messages.error(request, 'An error occurred. Please try again.')
 
-        # Go back to verify_pending page
         request.session['pending_verification_email'] = email
         return redirect('verify_pending')
-    
+
     # GET request - show form
     return render(request, 'accounts/resend_verification.html', {
         'page_title': 'Resend Verification',

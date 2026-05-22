@@ -132,7 +132,7 @@
 </div>
 </div>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 function setMode(mode) {
   document.getElementById('filterMode').value = mode;
   document.getElementById('panelRange').style.display     = mode === 'range'     ? 'block' : 'none';

@@ -281,7 +281,7 @@
     data-cat-amounts='{{ cat_amounts_json }}'
     style="display:none;"></span>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 (function () {
     var el          = document.getElementById('chartData');
     var dailyLabels  = JSON.parse(el.dataset.dailyLabels  || '[]');
@@ -543,7 +543,7 @@
 
 <span id="tourCompleteUrl" data-url="{% url 'tour_complete' %}" style="display:none;"></span>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 (function () {
   var steps = [
     {

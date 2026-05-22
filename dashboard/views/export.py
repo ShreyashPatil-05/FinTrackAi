@@ -4,6 +4,7 @@ Data Export View
 Export user financial data to CSV format.
 """
 import csv
+import calendar
 from datetime import date
 from calendar import month_name
 
@@ -12,7 +13,9 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 
 from expenses.forms import get_category_choices
+from expenses.models import Expense
 from ..models import Income, Subscription, SavingsGoal
+from ..utils import get_available_years
 
 
 @login_required(login_url='login')
@@ -32,12 +35,10 @@ def export_data(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: CSV file download or export form
     """
-    from expenses.models import Expense
-    
     all_cats = [c for c, _ in get_category_choices(request.user)]
     today = date.today()
     months = [(i, month_name[i]) for i in range(1, 13)]
-    years = list(range(today.year, today.year - 6, -1))
+    years = get_available_years(request.user)
 
     if request.method == 'POST':
         # date range mode vs month/year mode
@@ -48,7 +49,6 @@ def export_data(request: HttpRequest) -> HttpResponse:
             try:
                 sel_month = int(request.POST.get('sel_month', today.month))
                 sel_year  = int(request.POST.get('sel_year', today.year))
-                import calendar
                 last_day = calendar.monthrange(sel_year, sel_month)[1]
                 date_from = f'{sel_year}-{sel_month:02d}-01'
                 date_to   = f'{sel_year}-{sel_month:02d}-{last_day:02d}'

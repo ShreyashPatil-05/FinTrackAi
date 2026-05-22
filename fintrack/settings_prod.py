@@ -32,6 +32,12 @@ SECURE_HSTS_PRELOAD        = True
 SECURE_BROWSER_XSS_FILTER  = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
+# ── Session hardening ─────────────────────────────────────
+SESSION_COOKIE_SAMESITE = 'Strict'
+CSRF_COOKIE_SAMESITE    = 'Strict'
+SESSION_COOKIE_AGE      = 3600          # 1 hour idle timeout
+SESSION_SAVE_EVERY_REQUEST = True       # slide expiry on activity
+
 # ── PostgreSQL ────────────────────────────────────────────
 # Supports DATABASE_URL (Railway/Render/Heroku) or individual vars
 import dj_database_url

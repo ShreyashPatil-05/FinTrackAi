@@ -305,7 +305,7 @@
     <div id="bulkDeleteInputs"></div>
 </form>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 var STORAGE_KEY = 'fintrack_expense_view';
 var FILTER_KEY  = 'fintrack_filter_open';
 

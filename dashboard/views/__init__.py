@@ -1,6 +1,7 @@
 # Dashboard Views Package
 from .landing import landing
 from .dashboard import dashboard_view, tour_complete
+from .insights import insights_view
 from .profile import profile, delete_account
 from .income import settings_income, income_add, income_edit, income_delete
 from .budget import settings_budget, settings_categories, budget_copy_last_month
@@ -14,6 +15,7 @@ __all__ = [
     'landing',
     'dashboard_view',
     'tour_complete',
+    'insights_view',
     'profile',
     'delete_account',
     'settings',

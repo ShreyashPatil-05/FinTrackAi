@@ -117,7 +117,7 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 
 ACCOUNT_EMAIL_VERIFICATION = 'none'
-SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_LOGIN_ON_GET = False
 SOCIALACCOUNT_AUTO_SIGNUP = True
 
 # ── Email Configuration ──────────────────────────────────
@@ -128,13 +128,14 @@ EMAIL_PORT          = int(os.environ.get('EMAIL_PORT', '587'))
 EMAIL_USE_TLS       = True
 EMAIL_HOST_USER     = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+
 # Use verified sender email for SendGrid
 DEFAULT_FROM_EMAIL  = os.environ.get('DEFAULT_FROM_EMAIL', f'FinTrack <{EMAIL_HOST_USER}>')
 
 # ── django-axes ───────────────────────────────────────────
 AXES_FAILURE_LIMIT      = 5
 AXES_COOLOFF_TIME       = 0.25
-AXES_LOCKOUT_PARAMETERS = ['ip_address']
+AXES_LOCKOUT_PARAMETERS = [['ip_address', 'username']]  # lock on IP+username combo
 AXES_RESET_ON_SUCCESS   = True
 AXES_ENABLE_ADMIN       = True
 

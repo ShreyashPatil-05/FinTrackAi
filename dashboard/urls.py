@@ -13,6 +13,7 @@ urlpatterns = [
     # Core dashboard
     path('dashboard/',    views.dashboard_view, name='dashboard'),
     path('tour-complete/', views.tour_complete,  name='tour_complete'),
+    path('insights/',     views.insights_view,  name='insights'),
     path('profile/',      views.profile,         name='profile'),
     path('profile/delete/', views.delete_account, name='delete_account'),
     path('export-data/',  views.export_data,     name='export_data'),

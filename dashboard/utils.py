@@ -5,8 +5,57 @@ Shared helper functions for dashboard views to reduce code duplication
 and improve maintainability.
 """
 from datetime import date, datetime
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 import calendar
+
+from django.db.models import Sum
+
+
+def get_sum_amount(queryset) -> float:
+    """
+    Return the total of the 'amount' field from a queryset.
+
+    Centralises the repeated aggregate(Sum('amount')) pattern.
+
+    Args:
+        queryset: Any Django queryset that has an 'amount' field
+
+    Returns:
+        float: Sum of amount, or 0.0 if queryset is empty
+    """
+    return float(queryset.aggregate(Sum('amount'))['amount__sum'] or 0)
+
+
+def get_month_date_range(year: int, month: int) -> Tuple[date, date]:
+    """
+    Return the first and last date of a given month.
+
+    Args:
+        year: Year (e.g., 2026)
+        month: Month number (1-12)
+
+    Returns:
+        tuple: (start_date, end_date) as date objects
+    """
+    start_dt = date(year, month, 1)
+    end_dt   = date(year, month, get_last_day_of_month(year, month))
+    return start_dt, end_dt
+
+
+def get_previous_month(month: int, year: int) -> Tuple[int, int]:
+    """
+    Return the previous month and year.
+
+    Args:
+        month: Current month (1-12)
+        year: Current year
+
+    Returns:
+        tuple: (prev_month, prev_year)
+    """
+    if month == 1:
+        return 12, year - 1
+    return month - 1, year
 
 
 def get_month_navigation(request, default_month=None, default_year=None) -> Dict[str, int]:
@@ -141,16 +190,13 @@ def get_date_range(request, view_month: int, view_year: int) -> Dict:
             is_custom = True
             filter_label = f"{start_dt.strftime('%d %b')} – {end_dt.strftime('%d %b %Y')}"
         except ValueError:
-            # Invalid date format, fall back to month view
             is_custom = False
-            start_dt = date(view_year, view_month, 1)
-            end_dt = date(view_year, view_month, get_last_day_of_month(view_year, view_month))
+            start_dt, end_dt = get_month_date_range(view_year, view_month)
             filter_label = f"{calendar.month_name[view_month]} {view_year}"
             start_str = end_str = ''
     else:
         is_custom = False
-        start_dt = date(view_year, view_month, 1)
-        end_dt = date(view_year, view_month, get_last_day_of_month(view_year, view_month))
+        start_dt, end_dt = get_month_date_range(view_year, view_month)
         filter_label = f"{calendar.month_name[view_month]} {view_year}"
     
     return {

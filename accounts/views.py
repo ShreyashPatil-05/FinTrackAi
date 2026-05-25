@@ -378,12 +378,8 @@ logout_view = require_POST(logout_view)
 def change_password_view(request):
     """
     Allow authenticated users to change their own password.
-
-    Security:
-        - Requires login (cannot be used unauthenticated)
-        - Uses request.user — never trusts username from POST body
-        - Invalidates other sessions after password change
-        - Same error message prevents username enumeration
+    Handles POST only — form lives in a modal on the profile page.
+    On success or failure, redirects back to profile.
     """
     from django.contrib.auth import update_session_auth_hash
 
@@ -394,25 +390,20 @@ def change_password_view(request):
 
         if not request.user.check_password(current_password):
             messages.error(request, "Current password is incorrect.")
+            return redirect("/profile/?pw_error=1")
         elif new_password1 != new_password2:
             messages.error(request, "New passwords do not match.")
+            return redirect("/profile/?pw_error=1")
         elif len(new_password1) < 8:
             messages.error(request, "New password must be at least 8 characters.")
+            return redirect("/profile/?pw_error=1")
         else:
             request.user.set_password(new_password1)
             request.user.save()
-            # Keep current session valid, invalidate all other sessions
             update_session_auth_hash(request, request.user)
             messages.success(request, "Password changed successfully.")
-            return redirect("profile")
 
-    context = {
-        "page_title": "Change Password",
-        "button_text": "Update Password",
-        "page_type": "change_password",
-        "hide_auth_nav": True,
-    }
-    return render(request, "accounts/auth.html", context)
+    return redirect("profile")
 
 
 # ----------------------------

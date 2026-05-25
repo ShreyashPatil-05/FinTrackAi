@@ -135,9 +135,9 @@
                 <i class="bi bi-download"></i> Export my data
             </a>
             {% if request.user.has_usable_password %}
-            <a href="{% url 'change_password' %}" class="prof-btn-save" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#475569,#334155);">
+            <button type="button" id="openChangePasswordModal" class="prof-btn-save" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#475569,#334155);border:none;cursor:pointer;">
                 <i class="bi bi-key"></i> Change password
-            </a>
+            </button>
             {% endif %}
         </div>
     </div>
@@ -211,12 +211,59 @@
     </div>
 </div>
 
+<!-- Change Password Modal -->
+<div class="inc-modal-overlay" id="changePasswordModal" style="display:none;">
+  <div class="inc-modal" style="max-width:420px;">
+    <div class="inc-modal-header" style="background:linear-gradient(135deg,#475569,#334155);">
+      <span><i class="bi bi-key me-2"></i>Change Password</span>
+      <button class="inc-modal-close" id="closeChangePasswordModal">&times;</button>
+    </div>
+    <form method="post" action="{% url 'change_password' %}" novalidate>
+      {% csrf_token %}
+      <div class="inc-modal-body">
+        <div class="stg-field">
+          <label class="stg-label">Current Password</label>
+          <input type="password" name="current_password" class="stg-input" placeholder="Enter current password" required>
+        </div>
+        <div class="stg-field">
+          <label class="stg-label">New Password</label>
+          <input type="password" name="new_password1" id="cpNewPw1" class="stg-input" placeholder="At least 8 characters" required>
+          <!-- Strength meter -->
+          <div id="cpStrengthWrap" style="margin-top:8px;display:none;">
+            <div style="display:flex;gap:4px;margin-bottom:4px;">
+              <div class="cp-bar" id="cp-bar-1" style="flex:1;height:4px;border-radius:4px;background:#e2e8f0;transition:background .25s;"></div>
+              <div class="cp-bar" id="cp-bar-2" style="flex:1;height:4px;border-radius:4px;background:#e2e8f0;transition:background .25s;"></div>
+              <div class="cp-bar" id="cp-bar-3" style="flex:1;height:4px;border-radius:4px;background:#e2e8f0;transition:background .25s;"></div>
+              <div class="cp-bar" id="cp-bar-4" style="flex:1;height:4px;border-radius:4px;background:#e2e8f0;transition:background .25s;"></div>
+            </div>
+            <div id="cpStrengthLabel" style="font-size:12px;font-weight:600;"></div>
+            <ul id="cpHints" style="margin:4px 0 0;padding:0;list-style:none;font-size:12px;color:#94a3b8;"></ul>
+          </div>
+        </div>
+        <div class="stg-field">
+          <label class="stg-label">Confirm New Password</label>
+          <input type="password" name="new_password2" id="cpNewPw2" class="stg-input" placeholder="Repeat new password" required>
+          <div id="cpMatchMsg" style="font-size:12px;margin-top:5px;display:none;"></div>
+        </div>
+      </div>
+      <div class="inc-modal-footer">
+        <button type="button" class="stg-btn-cancel" id="cancelChangePasswordModal">Cancel</button>
+        <button type="submit" class="sub-btn-add" style="background:linear-gradient(135deg,#475569,#334155);">
+          <i class="bi bi-check-lg me-1"></i> Update Password
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 document.getElementById('avatarInput').addEventListener('change', function() {
     if (this.files && this.files[0]) {
         document.getElementById('avatarForm').submit();
     }
 });
+
+// Delete modal
 var deleteModal = document.getElementById('deleteModal');
 document.getElementById('openDeleteModal').addEventListener('click', function() {
     deleteModal.style.display = 'flex';
@@ -227,6 +274,85 @@ document.getElementById('cancelDeleteModal').addEventListener('click', function(
 deleteModal.addEventListener('click', function(e) {
     if (e.target === deleteModal) deleteModal.style.display = 'none';
 });
+
+// Change password modal
+var cpModal = document.getElementById('changePasswordModal');
+document.getElementById('openChangePasswordModal').addEventListener('click', function() {
+    cpModal.style.display = 'flex';
+});
+document.getElementById('closeChangePasswordModal').addEventListener('click', function() {
+    cpModal.style.display = 'none';
+});
+document.getElementById('cancelChangePasswordModal').addEventListener('click', function() {
+    cpModal.style.display = 'none';
+});
+cpModal.addEventListener('click', function(e) {
+    if (e.target === cpModal) cpModal.style.display = 'none';
+});
+
+// Password strength meter + match indicator
+var pw1 = document.getElementById('cpNewPw1');
+var pw2 = document.getElementById('cpNewPw2');
+var matchMsg = document.getElementById('cpMatchMsg');
+var strengthWrap = document.getElementById('cpStrengthWrap');
+var strengthLabel = document.getElementById('cpStrengthLabel');
+var hintsEl = document.getElementById('cpHints');
+var bars = [1,2,3,4].map(function(i){ return document.getElementById('cp-bar-'+i); });
+var COLORS = ['#ef4444','#f97316','#eab308','#22c55e'];
+var LABELS = ['Weak','Fair','Good','Strong'];
+
+function pwScore(val) {
+    var s = 0;
+    if (val.length >= 8)           s++;
+    if (/[A-Z]/.test(val))         s++;
+    if (/[0-9]/.test(val))         s++;
+    if (/[^A-Za-z0-9]/.test(val))  s++;
+    return s;
+}
+function pwHints(val) {
+    var h = [];
+    if (val.length < 8)             h.push('At least 8 characters');
+    if (!/[A-Z]/.test(val))         h.push('Add an uppercase letter');
+    if (!/[0-9]/.test(val))         h.push('Add a number');
+    if (!/[^A-Za-z0-9]/.test(val))  h.push('Add a special character (!@#$...)');
+    return h;
+}
+pw1.addEventListener('input', function() {
+    var val = pw1.value;
+    if (!val) { strengthWrap.style.display = 'none'; return; }
+    strengthWrap.style.display = 'block';
+    var s = pwScore(val);
+    var idx = Math.max(s - 1, 0);
+    var color = COLORS[idx];
+    bars.forEach(function(bar, i) {
+        bar.style.background = i < s ? color : '#e2e8f0';
+    });
+    strengthLabel.textContent = LABELS[idx];
+    strengthLabel.style.color = color;
+    hintsEl.innerHTML = pwHints(val).map(function(h) {
+        return '<li style="display:flex;align-items:center;gap:5px;margin-bottom:2px;"><i class="bi bi-x-circle" style="color:#ef4444;font-size:11px;"></i>' + h + '</li>';
+    }).join('');
+    if (pw2.value) checkMatch();
+});
+
+function checkMatch() {
+    if (!pw2.value) { matchMsg.style.display = 'none'; return; }
+    matchMsg.style.display = 'block';
+    if (pw1.value === pw2.value) {
+        matchMsg.innerHTML = '<i class="bi bi-check-circle" style="color:#22c55e;"></i> Passwords match';
+        matchMsg.style.color = '#22c55e';
+    } else {
+        matchMsg.innerHTML = '<i class="bi bi-x-circle" style="color:#ef4444;"></i> Passwords do not match';
+        matchMsg.style.color = '#ef4444';
+    }
+}
+pw1.addEventListener('input', function() { if (pw2.value) checkMatch(); });
+pw2.addEventListener('input', checkMatch);
+
+{% if request.GET.pw_error %}
+// Auto-open modal if redirected back after a failed password change
+cpModal.style.display = 'flex';
+{% endif %}
 </script>
 
 {% endblock %}

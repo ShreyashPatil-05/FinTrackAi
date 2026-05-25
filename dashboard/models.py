@@ -361,12 +361,10 @@ class Subscription(models.Model):
         from expenses.models import Expense
         
         today = date.today()
-        if self.next_billing >= today:
+        if self.next_billing > today:
             return
         d = self.next_billing
-        while d < today:
-            # Record an expense on the billing date — use source='bank' equivalent
-            # Use update_or_create keyed on title+date+source to avoid collision with manual entries
+        while d <= today:
             Expense.objects.get_or_create(
                 user=self.user,
                 title=f"{self.name} (Subscription)",

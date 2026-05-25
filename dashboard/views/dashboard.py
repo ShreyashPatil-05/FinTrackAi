@@ -47,7 +47,7 @@ def _advance_overdue_subscriptions(user) -> None:
     """
     _today = date.today()
     for _sub in Subscription.objects.filter(
-        user=user, status='active', next_billing__lt=_today
+        user=user, status='active', next_billing__lte=_today
     ):
         try:
             _sub.advance_billing_date()

@@ -47,7 +47,7 @@ def subscriptions(request: HttpRequest) -> HttpResponse:
 
     # Auto-advance any overdue billing dates
     active_subs = get_active_subscriptions(request.user)
-    for sub in active_subs.filter(next_billing__lt=today):
+    for sub in active_subs.filter(next_billing__lte=today):
         sub.advance_billing_date()
 
     # Re-query after updates

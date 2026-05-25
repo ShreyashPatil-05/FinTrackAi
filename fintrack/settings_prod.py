@@ -6,12 +6,13 @@ from .settings_base import *
 import os
 
 DEBUG = False
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') + ['healthcheck.railway.app']
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
 
-# Override SITE_ID for production (Railway created Site with ID=2)
-SITE_ID = 2
+# SITE_ID — set via environment variable so it works across platforms
+# Railway used ID=2, Render/other platforms may use ID=1
+SITE_ID = int(os.environ.get('SITE_ID', '1'))
 
-# Railway terminates SSL at the proxy — trust the forwarded protocol header
+# Trust the forwarded protocol header (works on Railway, Render, Heroku, etc.)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # CSRF trusted origins — must include your Railway domain

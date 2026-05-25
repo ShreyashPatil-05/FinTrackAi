@@ -130,10 +130,15 @@
             <span class="prof-info-label">Your data</span>
             <span class="prof-info-value" style="font-size:0.82rem;color:#64748b;">Expenses, income, and savings goals</span>
         </div>
-        <div class="prof-actions" style="margin-top:12px;">
+        <div class="prof-actions" style="margin-top:12px;gap:10px;">
             <a href="{% url 'export_data' %}" class="prof-btn-save" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
                 <i class="bi bi-download"></i> Export my data
             </a>
+            {% if request.user.has_usable_password %}
+            <a href="{% url 'change_password' %}" class="prof-btn-save" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#475569,#334155);">
+                <i class="bi bi-key"></i> Change password
+            </a>
+            {% endif %}
         </div>
     </div>
 

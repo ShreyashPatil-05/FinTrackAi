@@ -1,0 +1,328 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinTrack — {{ page_title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    {% if page_type == "register" and recaptcha_site_key %}
+    <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit" async defer></script>
+    <script>
+      function onRecaptchaLoad() {
+        var el = document.querySelector('.g-recaptcha');
+        if (el) {
+          grecaptcha.render(el, { sitekey: '{{ recaptcha_site_key }}' });
+        }
+      }
+    </script>
+    {% endif %}
+    <script>
+      // Apply theme before paint to avoid flash
+      (function() {
+        var t = localStorage.getItem('ft_theme') || 'light';
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      })();
+    </script>
+</head>
+<body class="auth-body">
+
+<div class="auth-page">
+
+    <!-- ── Left dark panel ── -->
+    <div class="auth-left">
+        <div class="auth-left-inner">
+
+            <!-- Logo -->
+            <a href="/" class="auth-logo-link">
+                <img src="{% static 'images/logo.png' %}" alt="FinTrack" class="auth-logo-img">
+                <span class="auth-logo-text">Fin<span class="auth-logo-accent">Track</span></span>
+            </a>
+
+            <!-- Headline -->
+            <div class="auth-left-content">
+                <h2>Your finances,<br><span class="text-gradient">Under control.</span></h2>
+                <p>Track every rupee, understand your habits and build better financial health — all in one place.</p>
+
+                <div class="auth-features">
+                    <div class="auth-feature-item">
+                        <span class="auth-feature-icon"><i class="bi bi-bar-chart-line-fill"></i></span>
+                        <span>Visual spending analytics</span>
+                    </div>
+                    <div class="auth-feature-item">
+                        <span class="auth-feature-icon"><i class="bi bi-shield-fill-check"></i></span>
+                        <span>Secure &amp; private data</span>
+                    </div>
+                    <div class="auth-feature-item">
+                        <span class="auth-feature-icon"><i class="bi bi-lightning-charge-fill"></i></span>
+                        <span>Instant expense logging</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Decorative stat card -->
+            <div class="auth-deco-card">
+                <div class="deco-row">
+                    <span class="deco-icon green"><i class="bi bi-arrow-up-circle-fill"></i></span>
+                    <div>
+                        <div class="deco-label">Monthly Savings</div>
+                        <div class="deco-value">+₹12,400</div>
+                    </div>
+                    <span class="deco-badge">↑ 18%</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── Right form panel ── -->
+    <div class="auth-right">
+        <!-- Theme toggle -->
+        <button class="auth-theme-btn" id="authThemeToggle" title="Toggle theme">
+            <i class="bi bi-moon-fill" id="authThemeIcon"></i>
+        </button>
+        <div class="auth-form-wrap">
+
+            <div class="auth-form-header">
+                <h3>{{ page_title }}</h3>
+                <p>
+                    {% if page_type == "login" %}
+                        Welcome back — sign in to your account.
+                    {% elif page_type == "change_password" %}
+                        Enter your current password and choose a new one.
+                    {% else %}
+                        Create your free account in seconds.
+                    {% endif %}
+                </p>
+            </div>
+
+            {% if messages %}
+                {% for message in messages %}
+                    {% if 'success' in message.tags %}
+                    <div class="auth-alert auth-alert--success">
+                        <i class="bi bi-check-circle-fill me-2"></i>{{ message|safe }}
+                    </div>
+                    {% elif 'warning' in message.tags %}
+                    <div class="auth-alert auth-alert--warning">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ message|safe }}
+                    </div>
+                    {% else %}
+                    <div class="auth-alert auth-alert--error">
+                        <i class="bi bi-exclamation-circle-fill me-2"></i>{{ message|safe }}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {% for field in form %}
+                    <div class="auth-field">
+                        <label class="auth-label">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.errors %}
+                            <div class="auth-error">
+                                <i class="bi bi-exclamation-circle me-1"></i>{{ field.errors|striptags }}
+                            </div>
+                        {% endif %}
+                        {% if page_type == "register" and field.html_name == "password1" %}
+                        <!-- Password strength meter -->
+                        <div id="pw-strength-wrap" style="margin-top:8px;display:none;">
+                            <div style="display:flex;gap:4px;margin-bottom:5px;">
+                                <div class="pw-bar" id="pw-bar-1"></div>
+                                <div class="pw-bar" id="pw-bar-2"></div>
+                                <div class="pw-bar" id="pw-bar-3"></div>
+                                <div class="pw-bar" id="pw-bar-4"></div>
+                            </div>
+                            <div id="pw-strength-label" style="font-size:12px;font-weight:500;"></div>
+                            <ul id="pw-hints" style="margin:5px 0 0 0;padding-left:16px;font-size:12px;color:var(--text-muted,#888);list-style:none;padding:0;"></ul>
+                        </div>
+                        {% endif %}
+                        {% if page_type == "register" and field.html_name == "password2" %}
+                        <!-- Password match indicator -->
+                        <div id="pw-match-msg" style="font-size:12px;margin-top:5px;display:none;"></div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+
+                {% if page_type == "register" and recaptcha_site_key %}
+                <div style="display:flex;justify-content:center;margin-bottom:12px;">
+                    <div class="g-recaptcha"></div>
+                </div>
+                {% endif %}
+
+                <button type="submit" class="btn-auth-submit">
+                    {% if page_type == "login" %}
+                        Sign In <i class="bi bi-arrow-right ms-2"></i>
+                    {% elif page_type == "change_password" %}
+                        Update Password <i class="bi bi-arrow-right ms-2"></i>
+                    {% else %}
+                        Create Account <i class="bi bi-arrow-right ms-2"></i>
+                    {% endif %}
+                </button>
+            </form>
+
+            <div class="auth-switch">
+                {% if page_type == "login" %}
+                    Don't have an account? <a href="{% url 'register' %}">Sign up free</a>
+                    <br><small class="mt-1 d-block">
+                        {% if show_resend %}
+                        <a href="{% url 'resend_verification' %}">Resend verification email</a>
+                        {% endif %}
+                    </small>
+                {% elif page_type == "change_password" %}
+                    Remembered it? <a href="{% url 'login' %}">Back to login</a>
+                {% else %}
+                    Already have an account? <a href="{% url 'login' %}">Sign in</a>
+                {% endif %}
+            </div>
+
+            {% if page_type == "login" or page_type == "register" %}
+            <div class="auth-divider"><span>or</span></div>
+            <form method="post" action="/social/google/login/" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="btn-google-auth">
+                    <svg width="18" height="18" viewBox="0 0 48 48" style="margin-right:10px;">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                    </svg>
+                    Continue with Google
+                </button>
+            </form>
+            {% endif %}
+
+        </div>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Theme toggle
+    (function() {
+        var btn  = document.getElementById('authThemeToggle');
+        var icon = document.getElementById('authThemeIcon');
+        function applyTheme(t) {
+            document.documentElement.setAttribute('data-theme', t);
+            localStorage.setItem('ft_theme', t);
+            icon.className = t === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
+        }
+        applyTheme(localStorage.getItem('ft_theme') || 'light');
+        btn.addEventListener('click', function() {
+            var cur = document.documentElement.getAttribute('data-theme') || 'light';
+            applyTheme(cur === 'dark' ? 'light' : 'dark');
+        });
+    })();
+
+    // Password toggle
+    document.querySelectorAll('input[type="password"]').forEach(function(input) {
+        var wrapper = document.createElement('div');
+        wrapper.className = 'pw-wrapper';
+        input.parentNode.insertBefore(wrapper, input);
+        wrapper.appendChild(input);
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pw-toggle';
+        btn.innerHTML = '<i class="bi bi-eye"></i>';
+        btn.setAttribute('aria-label', 'Toggle password visibility');
+        wrapper.appendChild(btn);
+
+        btn.addEventListener('click', function() {
+            var isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            btn.innerHTML = isHidden
+                ? '<i class="bi bi-eye-slash"></i>'
+                : '<i class="bi bi-eye"></i>';
+        });
+    });
+
+    // ── Password strength meter (register only) ──────────────
+    (function() {
+        var pw1 = document.getElementById('id_password1');
+        var pw2 = document.getElementById('id_password2');
+        if (!pw1) return;
+
+        var wrap      = document.getElementById('pw-strength-wrap');
+        var label     = document.getElementById('pw-strength-label');
+        var hints     = document.getElementById('pw-hints');
+        var matchMsg  = document.getElementById('pw-match-msg');
+        var bars      = [1,2,3,4].map(function(i){ return document.getElementById('pw-bar-'+i); });
+
+        var style = document.createElement('style');
+        style.textContent = [
+            '.pw-bar{flex:1;height:4px;border-radius:4px;background:#e2e8f0;transition:background .25s;}',
+            '[data-theme="dark"] .pw-bar{background:#334155;}',
+        ].join('');
+        document.head.appendChild(style);
+
+        var COLORS = ['#ef4444','#f97316','#eab308','#22c55e'];
+        var LABELS = ['Weak','Fair','Good','Strong'];
+
+        function score(val) {
+            var s = 0;
+            if (val.length >= 8)  s++;
+            if (/[A-Z]/.test(val)) s++;
+            if (/[0-9]/.test(val)) s++;
+            if (/[^A-Za-z0-9]/.test(val)) s++;
+            return s;
+        }
+
+        function getHints(val) {
+            var h = [];
+            if (val.length < 8)            h.push('At least 8 characters');
+            if (!/[A-Z]/.test(val))        h.push('Add an uppercase letter');
+            if (!/[0-9]/.test(val))        h.push('Add a number');
+            if (!/[^A-Za-z0-9]/.test(val)) h.push('Add a special character (!@#$...)');
+            return h;
+        }
+
+        pw1.addEventListener('input', function() {
+            var val = pw1.value;
+            if (!val) { wrap.style.display = 'none'; return; }
+            wrap.style.display = 'block';
+
+            var s = score(val);
+            var idx = Math.max(s - 1, 0);
+            var color = COLORS[idx];
+
+            bars.forEach(function(bar, i) {
+                var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+                bar.style.background = i < s ? color : (dark ? '#334155' : '#e2e8f0');
+            });
+
+            label.textContent = LABELS[idx];
+            label.style.color = color;
+
+            hints.innerHTML = getHints(val).map(function(h) {
+                return '<li style="display:flex;align-items:center;gap:5px;margin-bottom:2px;"><i class="bi bi-x-circle" style="color:#ef4444;font-size:11px;"></i>' + h + '</li>';
+            }).join('');
+
+            if (pw2 && pw2.value) checkMatch();
+        });
+
+        function checkMatch() {
+            if (!pw2 || !matchMsg) return;
+            if (!pw2.value) { matchMsg.style.display = 'none'; return; }
+            matchMsg.style.display = 'block';
+            if (pw1.value === pw2.value) {
+                matchMsg.innerHTML = '<i class="bi bi-check-circle" style="color:#22c55e;"></i> Passwords match';
+                matchMsg.style.color = '#22c55e';
+            } else {
+                matchMsg.innerHTML = '<i class="bi bi-x-circle" style="color:#ef4444;"></i> Passwords do not match';
+                matchMsg.style.color = '#ef4444';
+            }
+        }
+
+        if (pw2) pw2.addEventListener('input', checkMatch);
+    })();
+</script>
+</body>
+</html>

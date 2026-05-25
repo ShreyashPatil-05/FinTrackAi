@@ -21,3 +21,6 @@ env/
 test_sendgrid.py
 locustfile.py
 
+# Development notes / audit logs
+Code log/
+

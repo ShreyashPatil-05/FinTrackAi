@@ -330,8 +330,6 @@ class Subscription(models.Model):
         return f"{self.name} ({self.cycle})"
     
     def __repr__(self):
-        return f"<Subscription: {self.name} ₹{self.amount}/{self.cycle} ({self.status})>"
-    def __repr__(self):
         return f"<Subscription: {self.name} - ₹{self.amount}/{self.cycle} ({self.status})>"
 
     @property

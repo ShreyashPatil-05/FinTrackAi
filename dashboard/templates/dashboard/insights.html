@@ -199,15 +199,23 @@
         integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g"
         crossorigin="anonymous"></script>
 
+<span id="trendData"
+    data-labels='{{ monthly_data|json_monthly_labels|safe }}'
+    data-income='{{ monthly_data|json_monthly_income|safe }}'
+    data-spent='{{ monthly_data|json_monthly_spent|safe }}'
+    data-saved='{{ monthly_data|json_monthly_saved|safe }}'
+    style="display:none;"></span>
+
 <script>
-// ── Trend Chart ──────────────────────────────────────────────────────────────
+// Trend Chart
 (function() {
     var ctx = document.getElementById('trendChart');
     if (!ctx) return;
-    var labels  = {{ monthly_data|json_monthly_labels }};
-    var income  = {{ monthly_data|json_monthly_income }};
-    var spent   = {{ monthly_data|json_monthly_spent }};
-    var saved   = {{ monthly_data|json_monthly_saved }};
+    var el     = document.getElementById('trendData');
+    var labels = JSON.parse(el.dataset.labels || '[]');
+    var income = JSON.parse(el.dataset.income || '[]');
+    var spent  = JSON.parse(el.dataset.spent  || '[]');
+    var saved  = JSON.parse(el.dataset.saved  || '[]');
 
     new Chart(ctx, {
         type: 'bar',
@@ -249,8 +257,8 @@
                     padding: 10,
                     cornerRadius: 8,
                     callbacks: {
-                        label: function(ctx) {
-                            return '  ' + ctx.dataset.label + ': ' + inrJS(ctx.parsed.y);
+                        label: function(c) {
+                            return '  ' + c.dataset.label + ': ' + inrJS(c.parsed.y);
                         }
                     }
                 }
@@ -267,7 +275,7 @@
     });
 })();
 
-// ── Refresh Insights ─────────────────────────────────────────────────────────
+// Refresh Insights
 function refreshInsights() {
     var btn  = document.getElementById('refreshBtn');
     var icon = document.getElementById('refreshIcon');

@@ -111,7 +111,15 @@ def _gather_user_data(user) -> dict:
 
     # ── Subscriptions — reuse service ──
     active_subs_qs = get_active_subscriptions(user)
-    active_subs = list(active_subs_qs.values('name', 'amount', 'cycle', 'next_billing'))
+    active_subs = [
+        {
+            'name': s.name,
+            'amount': float(s.amount),
+            'cycle': s.cycle,
+            'next_billing': str(s.next_billing),
+        }
+        for s in active_subs_qs
+    ]
     total_monthly_subs = round(get_total_monthly_cost(user), 2)
 
     # ── Savings goals — reuse service ──
@@ -208,10 +216,14 @@ def _parse_insights(raw: str) -> list:
         return []
     try:
         text = raw.strip()
-        if text.startswith('```'):
-            text = text.split('```')[1]
-            if text.startswith('json'):
-                text = text[4:]
+        # Strip markdown code fences if present
+        if '```' in text:
+            # Extract content between first ``` and last ```
+            parts = text.split('```')
+            # parts[1] contains the fenced content (possibly starting with 'json\n')
+            text = parts[1].strip()
+            if text.lower().startswith('json'):
+                text = text[4:].strip()
         insights = json.loads(text.strip())
         if isinstance(insights, list):
             return [

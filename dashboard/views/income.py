@@ -15,6 +15,7 @@ from django.http import HttpRequest, HttpResponse
 from ..models import Income
 from ..utils import get_month_navigation, get_available_years
 from ..services.income_service import get_income_entries, get_income_summary
+from ..services.plan_service import check_limit
 
 
 @login_required(login_url='login')
@@ -81,6 +82,12 @@ def income_add(request: HttpRequest) -> HttpResponse:
         HttpResponse: Redirect to income settings
     """
     if request.method == 'POST':
+        # ── Plan limit check ──────────────────────────────────────────────────
+        allowed, msg = check_limit(request.user, 'income')
+        if not allowed:
+            messages.error(request, msg)
+            return redirect('pricing')
+        # ─────────────────────────────────────────────────────────────────────
         try:
             inc_date = request.POST.get('date', '').strip()
             amount = Decimal(request.POST.get('amount', '0'))

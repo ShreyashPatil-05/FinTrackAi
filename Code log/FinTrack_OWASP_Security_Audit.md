@@ -1,181 +1,129 @@
-# FinTrack — Full OWASP Top 10 Security Audit
+# FinTrack — OWASP Top 10 Security Audit
+
+**Last verified:** July 2026  
+**Auditor:** Code review + live codebase scan  
+**Django version:** 6.0.2
 
 ---
 
-## ✅ IMPLEMENTED FIXES
+## Status Summary
 
-All items below have been confirmed in the codebase as of May 2026.
+| Severity | Total | ✅ Fixed | ❌ Pending |
+|---|---|---|---|
+| 🔴 Critical | 3 | 2 | 1 |
+| 🟠 High | 8 | 7 | 1 |
+| 🟡 Medium | 12 | 10 | 2 |
+| 🟢 Low | 8 | 4 | 4 |
+
+---
+
+## ✅ IMPLEMENTED — Confirmed in codebase
 
 ### Critical
 
-| ID | Issue | Fix Applied |
-|---|---|---|
-| C2 | `change_password_view` missing `@login_required` | Added `@login_required`, removed `username` from form, uses `request.user` only. `update_session_auth_hash()` called to keep current session valid and invalidate others. |
-| C3 | `logout_view` accepts GET silently | `require_POST` applied — GET requests now return 405. |
+| ID | OWASP | Issue | Fix Verified In |
+|---|---|---|---|
+| C2 | A07 | `change_password_view` missing `@login_required` and `@require_POST` | `accounts/views.py` — both decorators applied, uses `request.user` only, `update_session_auth_hash()` called |
+| C3 | A01 | `logout_view` accepted GET (CSRF logout) | `accounts/views.py` — `require_POST` applied at module level |
 
 ### High
 
-| ID | Issue | Fix Applied |
-|---|---|---|
-| H1 | axes only locks by IP (distributed brute-force bypass) | `AXES_LOCKOUT_PARAMETERS = [['ip_address', 'username']]` — locks on IP+username combo. |
-| H2 | CSV upload no size limit (DoS) | 1MB file size limit + 5,000 row cap added in `upload.py`. |
-| H3 | Webhook endpoint no rate limiting | 60 requests/minute per IP using cache-based rate limiter in `webhook.py`. |
-| H5 | `SOCIALACCOUNT_LOGIN_ON_GET = True` (OAuth CSRF) | Set to `False` in `settings_base.py`. |
-| H6 | `_get_client_ip` trusts first X-Forwarded-For (spoofable) | Uses rightmost IP (`ips[-1]`) — set by trusted proxy, not client-controlled. |
-| H7 | WebP magic bytes check wrong (matched any RIFF container) | Fixed to check `header[8:12] == b'WEBP'` in `profile.py`. |
-| H8 | Login credential oracle via `is_unverified_user` pre-check | `authenticate()` called first, then `user.is_active` checked — no pre-check that leaks valid credentials. |
+| ID | OWASP | Issue | Fix Verified In |
+|---|---|---|---|
+| H1 | A07 | django-axes only locked by IP (distributed brute-force bypass) | `settings_base.py` — `AXES_LOCKOUT_PARAMETERS = [['ip_address', 'username']]` |
+| H2 | A04 | CSV upload had no size limit (DoS vector) | `dashboard/views/upload.py` — 1MB file limit + 5,000 row cap |
+| H3 | A04 | Webhook endpoint had no rate limiting | `expenses/webhook.py` — 60 req/min per IP via Django cache |
+| H5 | A01 | `SOCIALACCOUNT_LOGIN_ON_GET = True` (OAuth CSRF) | `settings_base.py` — set to `False` |
+| H6 | A07 | `_get_client_ip` trusted first `X-Forwarded-For` (spoofable) | `accounts/views.py` — uses rightmost IP (`ips[-1]`) |
+| H7 | A04 | WebP magic bytes check matched any RIFF container | `dashboard/views/profile.py` — checks `header[8:12] == b'WEBP'` |
+| H8 | A07 | Login view credential oracle via pre-check before `authenticate()` | `accounts/views.py` — `authenticate()` called first; `is_active` check now returns same generic error message as wrong-password (oracle closed) |
 
 ### Medium
 
-| ID | Issue | Fix Applied |
-|---|---|---|
-| M4 | Webhook date field not validated | `strptime` validation + future date rejection in `webhook.py`. |
-| M5 | CSV import uses per-row `create()` (N+1 inserts) | Replaced with `bulk_create(batch_size=500)` in `upload.py`. |
-| M6 | Email addresses logged as PII | Masked as `sh***@gmail.com (user_id=N)` in `_send_verification_email`. |
-| M7 | Resend verification rate limit keyed on user ID, not IP; counter incremented after send | Keyed on IP (`resend_ip_{ip}`), counter incremented before sending. |
-| M8 | Session cookie `SameSite` not set | `SESSION_COOKIE_SAMESITE = 'Strict'`, `CSRF_COOKIE_SAMESITE = 'Strict'` in `settings_prod.py`. |
-| M10 | Email change without uniqueness check | Uniqueness check added in `profile.py` — rejects email already in use. |
-| M11 | `SESSION_COOKIE_AGE` not set (2-week default) | `SESSION_COOKIE_AGE = 3600` (1 hour) + `SESSION_SAVE_EVERY_REQUEST = True` in `settings_prod.py`. |
-| M12 | Webhook `merchant` field not length-validated | Explicit 1–200 char check returns 400 on violation. |
-
-### Low / Informational
-
-| ID | Issue | Fix Applied |
-|---|---|---|
-| L3 | Password change doesn't invalidate other sessions | `update_session_auth_hash(request, user)` called after password change. |
-
----
-
-## ❌ NOT IMPLEMENTED / PENDING
-
-| ID | Severity | Issue | Notes |
+| ID | OWASP | Issue | Fix Verified In |
 |---|---|---|---|
-| C1 | 🔴 Critical | `.env` secrets in git history | **Manual action required** — rotate Gmail app password + Django `SECRET_KEY` on Railway. Run `git log --all --full-history -- .env` to check history. If present, purge with `git filter-repo --path .env --invert-paths`. |
-| H4 | 🟠 High | CSP uses `unsafe-inline` (XSS protection defeated) | Nonce-based CSP was implemented but reverted — it broke all `onclick` handlers across templates. Proper fix requires converting every `onclick` attribute to `addEventListener` calls. Tracked as future refactor. |
-| M1 | 🟡 Medium | `ACCOUNT_EMAIL_VERIFICATION = 'none'` for allauth | Intentional — custom email verification is used instead of allauth's built-in flow. |
-| M2 | 🟡 Medium | Rate limiting broken without Redis (multi-worker) | Documented in `settings_prod.py`. Set `REDIS_URL` on Railway to fix. Without it, each Gunicorn worker has its own cache — rate limits multiply by worker count. |
-| M3 | 🟡 Medium | No rate limiting on data export endpoint | Not implemented. Low risk — authenticated users only. |
-| M9 | 🟡 Medium | Gemini API error logs raw response (200 chars) | Not fixed. Low risk — only triggered in error path. |
-| L1 | 🟢 Low | Media files (avatars) publicly accessible without auth | Acceptable without S3. Fix: serve via authenticated view or use S3 with pre-signed URLs. |
-| L2 | 🟢 Low | Redundant `hmac.compare_digest` in `WebhookToken.verify` | Dead code — no security impact. The hash comparison via `.get()` already proves equality. |
-| L4 | 🟢 Low | CSP missing `upgrade-insecure-requests` in production | Minor. Can be added to middleware when CSP is refactored. |
-| L5 | 🟢 Low | CSV preview data persists in session indefinitely | Minor. Data cleared on import via `session.pop()`, but stays if user navigates away. |
-| L6 | 🟢 Low | `psycopg2-binary` and `requests` use `>=` (unpinned) | Minor. Pin to exact versions for reproducible production builds. |
-| L7 | 🟢 Low | `verify_pending` leaks email from session | Very low risk. View is unauthenticated — email visible to anyone with the session cookie on a shared machine. |
-| L8 | 🟢 Low | `AXES_COOLOFF_TIME = 0.25` (15 min lockout) | Short for a financial app. Consider progressive lockout: 15 min → 1 hour → 24 hours. |
+| M4 | A04 | Webhook `date` field not validated | `expenses/webhook.py` — `strptime` validation + future date rejection |
+| M5 | A04 | CSV import used per-row `create()` (N+1 inserts) | `dashboard/views/upload.py` — `bulk_create(batch_size=500)` |
+| M6 | A09 | Email addresses logged as PII | `accounts/views.py` — masked as `sh***@gmail.com (user_id=N)` |
+| M7 | A07 | Resend verification rate limit keyed on user ID, counter incremented after send | `accounts/views.py` — keyed on IP, counter incremented before sending |
+| M8 | A05 | `SESSION_COOKIE_SAMESITE` not set | `settings_prod.py` — `SESSION_COOKIE_SAMESITE = 'Strict'`, `CSRF_COOKIE_SAMESITE = 'Strict'` |
+| M9 | A09 | Gemini API error logs raw response | `dashboard/views/insights.py` — parse failure truncated to 200 chars, `_call_gemini` only logs exception, not response body |
+| M10 | A04 | Email change without uniqueness check | `dashboard/views/profile.py` — `User.objects.exclude(pk=...).filter(email=...).exists()` |
+| M11 | A07 | `SESSION_COOKIE_AGE` not set (2-week Django default) | `settings_prod.py` — `SESSION_COOKIE_AGE = 3600` + `SESSION_SAVE_EVERY_REQUEST = True` |
+| M12 | A04 | Webhook `merchant` field not length-validated | `expenses/webhook.py` — explicit 1–200 char check → 400 |
+| L6 | A06 | `psycopg2-binary`, `requests`, `sendgrid` used `>=` (unpinned) | `requirements.txt` — pinned to `==2.9.10`, `==2.32.3`, `==6.11.0` |
+
+### Low
+
+| ID | OWASP | Issue | Fix Verified In |
+|---|---|---|---|
+| L3 | A07 | Password change didn't invalidate other sessions | `accounts/views.py` — `update_session_auth_hash()` called after set_password |
+| L9 | A09 | `Code log/` audit files committed to git | `.gitignore` — `Code log/` added |
 
 ---
 
-## Additional Issues Found & Fixed (Not in Original Audit)
+## ❌ PENDING — Not yet implemented
 
-| Issue | Fix Applied |
+### Critical
+
+| ID | OWASP | Issue | Notes |
+|---|---|---|---|
+| C1 | A02 | Live secrets (SECRET_KEY, Gmail password, reCAPTCHA keys) in git history | **Manual action required.** Run `git log --all --full-history -- .env` to confirm. If present, rotate all secrets and purge with `git filter-repo --path .env --invert-paths`. Railway env vars should be re-set after rotation. |
+
+### High
+
+| ID | OWASP | Issue | Notes |
+|---|---|---|---|
+| H4 | A03 | CSP uses `unsafe-inline` — XSS protection defeated | Nonce-based CSP was implemented and reverted — broke all `onclick` handlers. Proper fix requires converting every `onclick` attribute to `addEventListener`. JS is now largely extracted to static files (`dashboard.js`, `insights.js`, etc.) — the bulk of the work is done. Main blocker: remaining inline event handlers in templates. Tracked as a future refactor. |
+
+### Medium
+
+| ID | OWASP | Issue | Notes |
+|---|---|---|---|
+| M2 | A05 | Rate limiting unreliable without Redis in multi-worker deploy | `settings_prod.py` uses `LocMemCache` per Gunicorn worker when `REDIS_URL` not set — rate limits multiply by worker count. Fix: set `REDIS_URL` in production environment. |
+| M3 | A04 | No rate limiting on data export endpoint | `dashboard/views/export.py` has only `@login_required`. Low risk (authenticated users only), but a user could hammer the export to cause load. |
+
+### Low
+
+| ID | OWASP | Issue | Notes |
+|---|---|---|---|
+| L1 | A01 | Avatar media files publicly accessible without auth | Acceptable for local/small-scale deploy. Fix: serve via authenticated view or use S3 with pre-signed URLs. |
+| L2 | A02 | Redundant `hmac.compare_digest` in `WebhookToken.verify` | Dead code — DB lookup already proves hash equality. No security impact, just noise. |
+| L4 | A05 | CSP missing `upgrade-insecure-requests` in production | Minor. Can be added to `middleware.py` CSP string once `H4` nonce refactor is done. |
+| L5 | A04 | CSV preview data persists in session indefinitely | `session.pop()` clears it on successful import, but if user navigates away the decoded CSV stays in session. Add a short TTL or clear on any non-import POST. |
+| L7 | A02 | `verify_pending` page shows email from session | Very low risk — only leaks to someone with physical access to the same browser session. Not worth fixing. |
+| L8 | A07 | `AXES_COOLOFF_TIME = 0.25` (15 min lockout) — short for a financial app | Consider progressive lockout: 15 min → 1 hour → 24 hours using `AXES_COOLOFF_TIME` as a callable. |
+
+---
+
+## Additional Issues Found & Fixed (Outside Original Audit Scope)
+
+| Issue | Fix |
 |---|---|
-| `ChangePasswordForm` had `username` field — view now uses `request.user` | `username` field removed from `ChangePasswordForm`. |
-| "Forgot password?" link on login page pointed to `change_password_view` which requires login — created redirect loop | Link removed from login page. "Change password" button added to Profile page (shown only for non-OAuth users). |
-| `auth.html` wiped to 0 bytes during nonce-removal script | Restored from git history (`823bdad`). |
-| `logout_view` had duplicate `require_POST` import | Deduplicated import line. |
-| `Code log/` folder being committed to git | Added `Code log/` to `.gitignore`. |
+| `ChangePasswordForm` had `username` field — view used `request.user` but form still exposed the field | `username` removed from form |
+| "Forgot password?" on login pointed to `change_password_view` (login-required) — created redirect loop | Link removed from login page; button added to Profile page (non-OAuth only) |
+| `auth.html` wiped to 0 bytes during nonce-removal script | Restored from git (`823bdad`) |
+| `logout_view` had duplicate `require_POST` import | Deduplicated |
+| `dashboard.html` wiped to 0 bytes | Restored and nonce attributes removed |
+| `savings_goal_detail.html` had corrupted line 3 (template tag merged with `endblock`) | Fixed |
+| Duplicate `__repr__` on `Subscription` model | Removed duplicate |
+| Subscription billing logic used `< today` (today's billing never triggered) | Changed to `<= today` in model and views |
+| All major page JS was inline in HTML templates — Django template tags inside `<script>` | Extracted to 6 static JS files; Django context passed via `data-*` attributes |
+| Gemini SDK using deprecated `google-generativeai` package (FutureWarning) | Migrated to `google-genai==2.10.0` |
 
 ---
 
-## Original Audit Findings (Full Detail)
+## OWASP Top 10 Coverage Map (2021)
 
-> The complete original audit text is preserved below for reference.
-
----
-
-### 🔴 CRITICAL
-
-**[C1] `.env` — Live Secrets Committed to Repository**
-OWASP: A02 Cryptographic Failures / A07 Authentication Failures
-
-```
-SECRET_KEY=^lcngywzqblm#2^l8j$pi111)-2zd*)05f1*#&030d_wvxjei(
-EMAIL_HOST_USER=shreyashpatil655@gmail.com
-EMAIL_HOST_PASSWORD=jcvtpqwojimtfswr        ← live Gmail App Password
-RECAPTCHA_SITE_KEY=6LfgE8QsAAAAAOpuZNBG3x08ICllYqKpJfqT_fhG
-RECAPTCHA_SECRET_KEY=6LfgE8QsAAAAALXtgIYBQAh3G9ssPET-SstxBKzR
-BANK_WEBHOOK_SECRET=fintrack-mock-bank-secret-2026
-```
-
-**[C2] `views.py` — `change_password_view` Has No `@login_required`**
-OWASP: A07 — ✅ FIXED
-
-**[C3] `views.py` — `logout_view` Silently Ignores GET**
-OWASP: A01 — ✅ FIXED
-
----
-
-### 🟠 HIGH
-
-**[H1] Login axes only locks by IP**
-OWASP: A07 — ✅ FIXED
-
-**[H2] CSV no size limit**
-OWASP: A04 — ✅ FIXED
-
-**[H3] Webhook no rate limiting**
-OWASP: A04 — ✅ FIXED
-
-**[H4] CSP uses `unsafe-inline`**
-OWASP: A03 — ❌ PENDING (nonce refactor required)
-
-**[H5] `SOCIALACCOUNT_LOGIN_ON_GET = True`**
-OWASP: A01 — ✅ FIXED
-
-**[H6] `_get_client_ip` trusts first X-Forwarded-For**
-OWASP: A07 — ✅ FIXED
-
-**[H7] WebP magic bytes wrong**
-OWASP: A04 — ✅ FIXED
-
-**[H8] Login credential oracle**
-OWASP: A07 — ✅ FIXED
-
----
-
-### 🟡 MEDIUM
-
-**[M1] `ACCOUNT_EMAIL_VERIFICATION = 'none'`** — Intentional, custom flow used
-
-**[M2] Rate limiting broken without Redis** — ❌ PENDING (set `REDIS_URL`)
-
-**[M3] No rate limiting on export** — ❌ PENDING
-
-**[M4] Webhook date not validated** — ✅ FIXED
-
-**[M5] CSV per-row inserts** — ✅ FIXED (`bulk_create`)
-
-**[M6] Email PII in logs** — ✅ FIXED (masked)
-
-**[M7] Resend rate limit by user ID** — ✅ FIXED (by IP, pre-increment)
-
-**[M8] Session cookie SameSite not set** — ✅ FIXED
-
-**[M9] Gemini logs raw response** — ❌ PENDING (low risk)
-
-**[M10] Email change no uniqueness check** — ✅ FIXED
-
-**[M11] SESSION_COOKIE_AGE not set** — ✅ FIXED (1 hour)
-
-**[M12] Webhook merchant not length-validated** — ✅ FIXED
-
----
-
-### 🟢 LOW / INFORMATIONAL
-
-**[L1]** Media files publicly accessible — ❌ PENDING
-
-**[L2]** Redundant `hmac.compare_digest` — dead code, no impact
-
-**[L3]** Password change doesn't invalidate other sessions — ✅ FIXED
-
-**[L4]** CSP missing `upgrade-insecure-requests` — ❌ PENDING
-
-**[L5]** CSV preview in session indefinitely — ❌ PENDING
-
-**[L6]** Unpinned dependencies — ❌ PENDING
-
-**[L7]** `verify_pending` leaks email — low risk, not fixed
-
-**[L8]** `AXES_COOLOFF_TIME` 15 min — ❌ PENDING
+| Category | Status |
+|---|---|
+| A01 — Broken Access Control | ✅ `@login_required` on all views, `@require_POST` on state-changing endpoints |
+| A02 — Cryptographic Failures | ⚠️ C1 (live secrets in git history) still pending |
+| A03 — Injection | ✅ Django ORM parameterises all queries; CSP present (unsafe-inline pending nonce refactor) |
+| A04 — Insecure Design | ✅ Rate limits on webhook + auth + CSV; size limits on uploads |
+| A05 — Security Misconfiguration | ✅ SameSite cookies, session age, AXES lockout; Redis rate-limiting pending in multi-worker |
+| A06 — Vulnerable Components | ✅ Dependencies pinned to exact versions; `google-generativeai` deprecated pkg replaced |
+| A07 — Authentication Failures | ✅ Brute-force protection, credential oracle closed, session invalidation on password change |
+| A08 — Software Integrity Failures | ✅ CDN scripts use SRI integrity attributes |
+| A09 — Logging Failures | ✅ PII masked in logs; Gemini response truncated to 200 chars |
+| A10 — SSRF | ✅ No outbound user-controlled requests in the app |

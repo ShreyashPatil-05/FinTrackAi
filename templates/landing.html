@@ -1,267 +1,434 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% load static %}
 
 {% block full_content %}
 
-<!-- Hero Section -->
-<section class="landing-hero">
-    <div class="hero-bg-shapes">
-        <div class="shape shape-1"></div>
-        <div class="shape shape-2"></div>
-        <div class="shape shape-3"></div>
-    </div>
-    <div class="container position-relative">
-        <div class="row align-items-center" style="min-height: 88vh;">
-            <div class="col-lg-6 hero-text">
-                <span class="hero-badge">
-                    <span class="badge-dot"></span> Personal Finance, Simplified
-                </span>
-                <h1 class="hero-title">
-                    Take Control of <span class="text-gradient">Your Money</span>
-                </h1>
-                <p class="hero-subtitle">
-                    FinTrack helps you track expenses, visualize spending habits, and reach your financial goals — all in one clean dashboard.
-                </p>
-                <div class="hero-actions">
-                    <a href="{% url 'register' %}" class="btn btn-hero-primary">
-                        Start for Free <i class="bi bi-arrow-right ms-1"></i>
-                    </a>
-                    <a href="{% url 'login' %}" class="btn btn-hero-ghost">
-                        Sign In
-                    </a>
-                </div>
-                <div class="hero-trust">
-                    <span class="trust-item"><i class="bi bi-check-circle-fill text-success me-1"></i> No credit card required</span>
-                    <span class="trust-item"><i class="bi bi-check-circle-fill text-success me-1"></i> Free forever plan</span>
-                    <span class="trust-item"><i class="bi bi-check-circle-fill text-success me-1"></i> Secure & private</span>
-                </div>
-            </div>
-            <div class="col-lg-6 d-flex justify-content-center mt-5 mt-lg-0">
-                <div class="hero-dashboard-preview">
-                    <div class="preview-card">
-                        <div class="preview-header">
-                            <span class="preview-dot red"></span>
-                            <span class="preview-dot yellow"></span>
-                            <span class="preview-dot green"></span>
-                            <span class="preview-title ms-2">Dashboard Overview</span>
-                        </div>
-                        <div class="preview-stats">
-                            <div class="preview-stat green-stat">
-                                <div class="stat-icon"><i class="bi bi-arrow-up-circle-fill"></i></div>
-                                <div>
-                                    <div class="stat-label">Total Income</div>
-                                    <div class="stat-value">₹82,400</div>
-                                </div>
-                            </div>
-                            <div class="preview-stat red-stat">
-                                <div class="stat-icon"><i class="bi bi-arrow-down-circle-fill"></i></div>
-                                <div>
-                                    <div class="stat-label">Total Expenses</div>
-                                    <div class="stat-value">₹31,800</div>
-                                </div>
-                            </div>
-                            <div class="preview-stat blue-stat">
-                                <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
-                                <div>
-                                    <div class="stat-label">Net Savings</div>
-                                    <div class="stat-value">₹50,600</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="preview-chart">
-                            <div class="chart-label">Spending This Month</div>
-                            <div class="chart-bars">
-                                <div class="chart-bar-wrap">
-                                    <div class="chart-bar" style="height:55%"></div>
-                                    <span>Jan</span>
-                                </div>
-                                <div class="chart-bar-wrap">
-                                    <div class="chart-bar" style="height:75%"></div>
-                                    <span>Feb</span>
-                                </div>
-                                <div class="chart-bar-wrap">
-                                    <div class="chart-bar active" style="height:90%"></div>
-                                    <span>Mar</span>
-                                </div>
-                                <div class="chart-bar-wrap">
-                                    <div class="chart-bar" style="height:60%"></div>
-                                    <span>Apr</span>
-                                </div>
-                                <div class="chart-bar-wrap">
-                                    <div class="chart-bar" style="height:45%"></div>
-                                    <span>May</span>
-                                </div>
-                                <div class="chart-bar-wrap">
-                                    <div class="chart-bar" style="height:80%"></div>
-                                    <span>Jun</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="preview-transactions">
-                            <div class="txn-row">
-                                <span class="txn-icon food"><i class="bi bi-cup-hot"></i></span>
-                                <span class="txn-name">Coffee & Snacks</span>
-                                <span class="txn-amount red">-₹250</span>
-                            </div>
-                            <div class="txn-row">
-                                <span class="txn-icon transport"><i class="bi bi-car-front"></i></span>
-                                <span class="txn-name">Transport</span>
-                                <span class="txn-amount red">-₹450</span>
-                            </div>
-                            <div class="txn-row">
-                                <span class="txn-icon income"><i class="bi bi-briefcase"></i></span>
-                                <span class="txn-name">Salary</span>
-                                <span class="txn-amount green">+₹42,000</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<!-- HERO -->
+<section class="lp-hero">
+  <div class="lp-hero-bg">
+    <div class="lp-blob lp-blob-1"></div>
+    <div class="lp-blob lp-blob-2"></div>
+  </div>
+  <div class="container position-relative">
+    <div class="text-center" style="padding: 20px 0 10px;">
+
+      <!-- Copy - centered -->
+      <div class="lp-hero-copy mx-auto" style="max-width:680px;">
+        <div class="lp-badge mb-3">
+          <i class="bi bi-stars me-1" style="color:#6366f1;"></i>
+          AI-Powered Personal Finance
         </div>
+        <h1 class="lp-hero-title">
+          Stop guessing.<br>
+          <span class="lp-gradient-text">Start knowing</span><br>
+          your money.
+        </h1>
+        <p class="lp-hero-sub">
+          Track every rupee, understand your spending habits, and receive AI-powered financial advice before problems become expensive.
+        </p>
+        <div class="lp-hero-actions">
+          <a href="{% url 'register' %}" class="lp-btn-primary">
+            Start Free <i class="bi bi-arrow-right ms-2"></i>
+          </a>
+          <a href="#pricing" class="lp-btn-ghost">See Pricing</a>
+        </div>
+        <div class="lp-trust-row mt-4">
+          <span><i class="bi bi-check-circle-fill" style="color:#22c55e;"></i> Free plan, no card</span>
+          <span><i class="bi bi-check-circle-fill" style="color:#22c55e;"></i> Cancel anytime</span>
+          <span><i class="bi bi-check-circle-fill" style="color:#22c55e;"></i> Indian payments (UPI)</span>
+        </div>
+      </div>
+
+      <!-- Dashboard screenshot -->
+      <div class="d-flex justify-content-center mt-5">
+        <div class="lp-preview-wrap">
+          <img src="{% static 'images/dashboard-preview.png' %}"
+               alt="FinTrack Dashboard Preview"
+               class="lp-preview-img">
+        </div>
+      </div>
+
     </div>
+  </div>
 </section>
 
-<!-- Stats Bar -->
-<section class="stats-bar">
-    <div class="container">
-        <div class="row text-center g-4">
-            <div class="col-6 col-md-3">
-                <div class="stat-number">10K+</div>
-                <div class="stat-desc">Active Users</div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="stat-number">₹2Cr+</div>
-                <div class="stat-desc">Expenses Tracked</div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="stat-number">50+</div>
-                <div class="stat-desc">Categories</div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="stat-number">99.9%</div>
-                <div class="stat-desc">Uptime</div>
-            </div>
-        </div>
+<!-- SOCIAL PROOF -->
+<section class="lp-proof">
+  <div class="container">
+    <div class="lp-proof-grid">
+      <div class="lp-proof-stat">
+        <div class="lp-proof-num">10K+</div>
+        <div class="lp-proof-desc">Active Users</div>
+      </div>
+      <div class="lp-proof-sep"></div>
+      <div class="lp-proof-stat">
+        <div class="lp-proof-num">&#8377;2L+</div>
+        <div class="lp-proof-desc">Expenses Tracked</div>
+      </div>
+      <div class="lp-proof-sep"></div>
+      <div class="lp-proof-stat">
+        <div class="lp-proof-num">4.5&#9733;</div>
+        <div class="lp-proof-desc">User Rating</div>
+      </div>
+      <div class="lp-proof-sep"></div>
+      <div class="lp-proof-stat">
+        <div class="lp-proof-num">95%</div>
+        <div class="lp-proof-desc">Uptime</div>
+      </div>
     </div>
+  </div>
 </section>
 
-<!-- Features Section -->
-<section class="features-section">
-    <div class="container">
-        <div class="section-header text-center">
-            <span class="section-tag">Features</span>
-            <h2 class="section-title">Everything you need to manage money</h2>
-            <p class="section-subtitle">Powerful tools designed to give you full visibility over your finances.</p>
-        </div>
-        <div class="row g-4 mt-2">
-            <div class="col-md-4">
-                <div class="feature-card">
-                    <div class="feature-icon-wrap purple">
-                        <i class="bi bi-wallet2"></i>
-                    </div>
-                    <h5>Expense Tracking</h5>
-                    <p>Log every transaction in seconds. Categorize, tag, and search through your spending history effortlessly.</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="feature-card">
-                    <div class="feature-icon-wrap blue">
-                        <i class="bi bi-bar-chart-line"></i>
-                    </div>
-                    <h5>Smart Analytics</h5>
-                    <p>Visual charts and monthly breakdowns help you understand where your money goes and spot trends fast.</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="feature-card">
-                    <div class="feature-icon-wrap green">
-                        <i class="bi bi-shield-check"></i>
-                    </div>
-                    <h5>Secure & Private</h5>
-                    <p>Your financial data is encrypted and protected. Only you have access to your personal information.</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="feature-card">
-                    <div class="feature-icon-wrap orange">
-                        <i class="bi bi-tags"></i>
-                    </div>
-                    <h5>Custom Categories</h5>
-                    <p>Create your own spending categories to match your lifestyle and get more meaningful insights.</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="feature-card">
-                    <div class="feature-icon-wrap teal">
-                        <i class="bi bi-calendar3"></i>
-                    </div>
-                    <h5>Monthly Reports</h5>
-                    <p>Get a clear picture of your monthly income vs expenses with auto-generated summaries.</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="feature-card">
-                    <div class="feature-icon-wrap pink">
-                        <i class="bi bi-phone"></i>
-                    </div>
-                    <h5>Mobile Friendly</h5>
-                    <p>Access your dashboard from any device. FinTrack is fully responsive and works great on mobile.</p>
-                </div>
-            </div>
-        </div>
+<!-- FEATURES -->
+<section class="lp-features" id="features">
+  <div class="container">
+    <div class="lp-section-head">
+      <span class="lp-section-tag">Features</span>
+      <h2 class="lp-section-title">Everything you need, nothing you don't</h2>
+      <p class="lp-section-sub">One dashboard. Full financial clarity.</p>
     </div>
+    <div class="row g-4 mt-2">
+      <div class="col-md-4">
+        <div class="lp-feat-card">
+          <div class="lp-feat-icon" style="background:#ede9fe;color:#7c3aed;"><i class="bi bi-wallet2"></i></div>
+          <h5>Expense Tracking</h5>
+          <p>Log every transaction in seconds. Categorize, filter, and search your entire spending history.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="lp-feat-card">
+          <div class="lp-feat-icon" style="background:#dbeafe;color:#2563eb;"><i class="bi bi-bar-chart-line"></i></div>
+          <h5>Visual Analytics</h5>
+          <p>Daily charts, category breakdowns, and month-over-month comparisons built in.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="lp-feat-card lp-feat-card--pro">
+          <div class="lp-feat-pro-badge"><i class="bi bi-stars me-1"></i>Pro</div>
+          <div class="lp-feat-icon" style="background:#fef3c7;color:#d97706;"><i class="bi bi-stars"></i></div>
+          <h5>AI Insights</h5>
+          <p>Gemini AI analyses your last 3 months and gives you 5 personalised, actionable financial insights.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="lp-feat-card">
+          <div class="lp-feat-icon" style="background:#dcfce7;color:#16a34a;"><i class="bi bi-piggy-bank"></i></div>
+          <h5>Savings Goals</h5>
+          <p>Set targets, track contributions, and get a predicted completion date based on your pace.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="lp-feat-card">
+          <div class="lp-feat-icon" style="background:#fee2e2;color:#dc2626;"><i class="bi bi-repeat"></i></div>
+          <h5>Subscription Manager</h5>
+          <p>Track every recurring charge. See your monthly cost, due dates, and billing alerts in one place.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="lp-feat-card lp-feat-card--pro">
+          <div class="lp-feat-pro-badge"><i class="bi bi-stars me-1"></i>Pro</div>
+          <div class="lp-feat-icon" style="background:#f0fdf4;color:#15803d;"><i class="bi bi-bank"></i></div>
+          <h5>Bank Webhook</h5>
+          <p>Simulate real bank transactions via webhook &mdash; expenses auto-appear in your dashboard instantly.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="lp-feat-card lp-feat-card--pro">
+          <div class="lp-feat-pro-badge"><i class="bi bi-stars me-1"></i>Pro</div>
+          <div class="lp-feat-icon" style="background:#fff7ed;color:#c2410c;"><i class="bi bi-upload"></i></div>
+          <h5>CSV Import</h5>
+          <p>Bulk import expenses from any CSV file. Preview before confirming, skip invalid rows automatically.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="lp-feat-card lp-feat-card--pro">
+          <div class="lp-feat-pro-badge"><i class="bi bi-stars me-1"></i>Pro</div>
+          <div class="lp-feat-icon" style="background:#f5f3ff;color:#6d28d9;"><i class="bi bi-download"></i></div>
+          <h5>Data Export</h5>
+          <p>Export all your financial data to CSV &mdash; filter by date, category, and data type.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="lp-feat-card">
+          <div class="lp-feat-icon" style="background:#e0f2fe;color:#0369a1;"><i class="bi bi-shield-check"></i></div>
+          <h5>Secure &amp; Private</h5>
+          <p>Email verification, rate limiting, CSP headers, and hashed tokens. Your data stays yours.</p>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
 
-<!-- How It Works -->
-<section class="how-section">
-    <div class="container">
-        <div class="section-header text-center">
-            <span class="section-tag">How It Works</span>
-            <h2 class="section-title">Up and running in minutes</h2>
-        </div>
-        <div class="row g-4 mt-2 align-items-center justify-content-center">
-            <div class="col-md-4 text-center">
-                <div class="step-circle">1</div>
-                <h5 class="mt-3">Create an Account</h5>
-                <p class="text-muted">Sign up for free in under 30 seconds. No credit card needed.</p>
-            </div>
-            <div class="col-md-1 d-none d-md-flex justify-content-center">
-                <i class="bi bi-arrow-right step-arrow"></i>
-            </div>
-            <div class="col-md-4 text-center">
-                <div class="step-circle">2</div>
-                <h5 class="mt-3">Log Your Expenses</h5>
-                <p class="text-muted">Add transactions manually with categories, dates, and notes.</p>
-            </div>
-            <div class="col-md-1 d-none d-md-flex justify-content-center">
-                <i class="bi bi-arrow-right step-arrow"></i>
-            </div>
-            <div class="col-md-4 text-center">
-                <div class="step-circle">3</div>
-                <h5 class="mt-3">Gain Insights</h5>
-                <p class="text-muted">View your dashboard and understand your spending patterns.</p>
-            </div>
-        </div>
+<!-- HOW IT WORKS -->
+<section class="lp-how" id="how">
+  <div class="container">
+    <div class="lp-section-head">
+      <span class="lp-section-tag">How It Works</span>
+      <h2 class="lp-section-title">Up and running in 60 seconds</h2>
     </div>
+    <div class="row g-4 mt-2 justify-content-center align-items-center">
+      <div class="col-md-3 text-center">
+        <div class="lp-step-circle">1</div>
+        <h5 class="mt-3 fw-bold">Create an Account</h5>
+        <p class="text-muted small">Sign up free. No credit card. Just your email.</p>
+      </div>
+      <div class="col-md-1 d-none d-md-flex justify-content-center">
+        <i class="bi bi-arrow-right lp-step-arrow"></i>
+      </div>
+      <div class="col-md-3 text-center">
+        <div class="lp-step-circle">2</div>
+        <h5 class="mt-3 fw-bold">Add Income &amp; Expenses</h5>
+        <p class="text-muted small">Log manually or import via CSV. The dashboard updates live.</p>
+      </div>
+      <div class="col-md-1 d-none d-md-flex justify-content-center">
+        <i class="bi bi-arrow-right lp-step-arrow"></i>
+      </div>
+      <div class="col-md-3 text-center">
+        <div class="lp-step-circle">3</div>
+        <h5 class="mt-3 fw-bold">Get AI Insights</h5>
+        <p class="text-muted small">Upgrade to Pro and let Gemini AI tell you exactly where to improve.</p>
+      </div>
+    </div>
+  </div>
 </section>
 
-<!-- CTA Section -->
-<section class="cta-section">
-    <div class="container">
-        <div class="cta-box">
-            <div class="cta-shapes">
-                <div class="cta-shape-1"></div>
-                <div class="cta-shape-2"></div>
-            </div>
-            <div class="position-relative text-center">
-                <h2 class="cta-title">Ready to take control of your finances?</h2>
-                <p class="cta-subtitle">Join thousands of users who trust FinTrack to manage their money.</p>
-                <a href="{% url 'register' %}" class="btn btn-cta">
-                    Get Started Free <i class="bi bi-arrow-right ms-2"></i>
-                </a>
-            </div>
-        </div>
+<!-- PRICING -->
+<section class="lp-pricing" id="pricing">
+  <div class="container">
+    <div class="lp-section-head">
+      <span class="lp-section-tag">Pricing</span>
+      <h2 class="lp-section-title">Simple, honest pricing</h2>
+      <p class="lp-section-sub">Start free. Upgrade when you're ready. No credit card required. No hidden fees.</p>
     </div>
+
+    <!-- Monthly / Yearly toggle -->
+    <div class="lp-billing-toggle">
+      <span class="lp-toggle-label" id="toggleLabelMonthly">Monthly</span>
+      <button class="lp-toggle-switch lp-toggle--on" id="billingToggle" aria-pressed="true" title="Switch billing period">
+        <span class="lp-toggle-knob"></span>
+      </button>
+      <span class="lp-toggle-label" id="toggleLabelYearly" style="font-weight:700;">Yearly</span>
+    </div>
+
+    <div class="row g-4 mt-2 justify-content-center">
+
+      <!-- Free Card -->
+      <div class="col-lg-5">
+        <div class="lp-plan-card lp-plan-card--hover">
+          <div class="lp-plan-name">Free</div>
+          <p class="lp-plan-tagline">Try it at your own pace</p>
+          <div class="lp-plan-price-row">
+            <div class="lp-plan-price">&#8377;0 <span class="lp-price-period">/ forever</span></div>
+          </div>
+          <p class="lp-plan-price-note" style="visibility:hidden;">placeholder</p>
+
+          <div class="lp-feat-group-label">EXPENSES &amp; TRACKING</div>
+          <ul class="lp-plan-table">
+            <li><span>Expenses / month</span><span>50</span></li>
+            <li><span>Income entries / month</span><span>20</span></li>
+            <li><span>Savings goals</span><span>2</span></li>
+            <li><span>Subscriptions</span><span>3</span></li>
+            <li><span>Budget categories</span><span>3</span></li>
+          </ul>
+
+          <div class="lp-feat-group-label">FEATURES</div>
+          <ul class="lp-plan-table">
+            <li><span>Dashboard &amp; analytics</span><span class="lp-val-check">&#10003;</span></li>
+            <li><span>AI Insights</span><span class="lp-val-dash">&mdash;</span></li>
+            <li><span>CSV Import &amp; Export</span><span class="lp-val-dash">&mdash;</span></li>
+            <li><span>Bank Webhook</span><span class="lp-val-dash">&mdash;</span></li>
+          </ul>
+
+          <a href="{% url 'register' %}" class="lp-plan-btn-ghost mt-3">Get Started Free</a>
+        </div>
+      </div>
+
+      <!-- Pro Card -->
+      <div class="col-lg-5">
+        <div class="lp-plan-card lp-plan-card--pro lp-plan-card--hover">
+          <div class="lp-plan-popular">Most Popular</div>
+          <div class="lp-plan-name">Pro</div>
+          <p class="lp-plan-tagline">Everything, unlimited</p>
+
+          <div class="lp-plan-price-row">
+            <div class="lp-plan-price" id="proPrice"><span id="priceAmount">&#8377;499</span> <span id="pricePeriod" class="lp-price-period">/ year</span></div>
+            <span class="lp-plan-save-badge" id="saveBadge">Save ~18% vs monthly</span>
+          </div>
+          <p class="lp-plan-price-note" id="priceNote">Early supporter price</p>
+
+          <div class="lp-feat-group-label">EXPENSES &amp; TRACKING</div>
+          <ul class="lp-plan-table">
+            <li><span>Expenses / month</span><span class="lp-val-unlimited">Unlimited</span></li>
+            <li><span>Income entries / month</span><span class="lp-val-unlimited">Unlimited</span></li>
+            <li><span>Savings goals</span><span class="lp-val-unlimited">Unlimited</span></li>
+            <li><span>Subscriptions</span><span class="lp-val-unlimited">Unlimited</span></li>
+            <li><span>Budget categories</span><span class="lp-val-unlimited">Unlimited</span></li>
+          </ul>
+
+          <div class="lp-feat-group-label">FEATURES</div>
+          <ul class="lp-plan-table">
+            <li><span>Dashboard &amp; analytics</span><span class="lp-val-check">&#10003;</span></li>
+            <li><span>AI Insights (Gemini)</span><span class="lp-val-unlimited">Full</span></li>
+            <li><span>CSV Import &amp; Export</span><span class="lp-val-check">&#10003;</span></li>
+            <li><span>Bank Webhook</span><span class="lp-val-check">&#10003;</span></li>
+          </ul>
+
+          <a href="{% url 'register' %}" class="lp-plan-btn-pro mt-3" id="proCtaBtn">
+            Get Pro &mdash; &#8377;499/yr
+          </a>
+          <p class="lp-plan-note">Paid via UPI, Cards, Net Banking</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  var yearly   = true;
+  var toggle   = document.getElementById('billingToggle');
+  var amount   = document.getElementById('priceAmount');
+  var period   = document.getElementById('pricePeriod');
+  var note     = document.getElementById('priceNote');
+  var cta      = document.getElementById('proCtaBtn');
+  var badge    = document.getElementById('saveBadge');
+  var lblM     = document.getElementById('toggleLabelMonthly');
+  var lblY     = document.getElementById('toggleLabelYearly');
+
+  function apply() {
+    if (yearly) {
+      amount.textContent = '\u20b9499';
+      period.textContent = '/ year';
+      note.textContent   = 'Early supporter price';
+      cta.textContent    = 'Get Pro \u2014 \u20b9499/yr';
+      toggle.setAttribute('aria-pressed', 'true');
+      toggle.classList.add('lp-toggle--on');
+      badge.style.display = 'inline-block';
+      lblY.style.fontWeight = '700';
+      lblM.style.fontWeight = '400';
+    } else {
+      amount.textContent = '\u20b949';
+      period.textContent = '/ month';
+      note.textContent   = '';
+      cta.textContent    = 'Get Pro \u2014 \u20b949/mo';
+      toggle.setAttribute('aria-pressed', 'false');
+      toggle.classList.remove('lp-toggle--on');
+      badge.style.display = 'none';
+      lblM.style.fontWeight = '700';
+      lblY.style.fontWeight = '400';
+    }
+  }
+
+  toggle.addEventListener('click', function() { yearly = !yearly; apply(); });
+  apply();
+})();
+</script>
+<!-- TESTIMONIALS -->
+<section class="lp-testimonials">
+  <div class="container">
+    <div class="lp-section-head">
+      <span class="lp-section-tag">Trusted by Users</span>
+      <h2 class="lp-section-title">Used and trusted by professionals across India</h2>
+    </div>
+    <div class="row g-4 mt-2">
+      <div class="col-md-4">
+        <div class="lp-testi-card">
+          <p class="lp-testi-quote">"Finally a finance app that actually shows me where my money goes. The AI insights are surprisingly accurate for Indian spending patterns."</p>
+          <div class="lp-testi-author">
+            <div class="lp-testi-avatar" style="background:#6366f1;">AP</div>
+            <div>
+              <div class="lp-testi-name">Arjun P.</div>
+              <div class="lp-testi-role">Software Engineer, Bangalore</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="lp-testi-card">
+          <p class="lp-testi-quote">"Found &#8377;8k in forgotten subscriptions within the first week. Simple, fast, and built for how Indians actually spend."</p>
+          <div class="lp-testi-author">
+            <div class="lp-testi-avatar" style="background:#0891b2;">SR</div>
+            <div>
+              <div class="lp-testi-name">Sneha R.</div>
+              <div class="lp-testi-role">Marketing Consultant, Mumbai</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="lp-testi-card">
+          <p class="lp-testi-quote">"Been using it 6 months. My savings rate has genuinely gone up by 18%. The budget alerts keep me honest."</p>
+          <div class="lp-testi-author">
+            <div class="lp-testi-avatar" style="background:#059669;">RK</div>
+            <div>
+              <div class="lp-testi-name">Rahul K.</div>
+              <div class="lp-testi-role">Project Manager, Pune</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="lp-faq" id="faq">
+  <div class="container">
+    <div class="lp-section-head">
+      <span class="lp-section-tag">FAQ</span>
+      <h2 class="lp-section-title">Common questions</h2>
+    </div>
+    <div class="lp-faq-grid">
+      <div class="lp-faq-item">
+        <div class="lp-faq-q">Is the free plan really free forever?</div>
+        <div class="lp-faq-a">Yes. The free plan has no time limit &mdash; just usage caps (50 expenses/month, etc.). You upgrade only when you need more.</div>
+      </div>
+      <div class="lp-faq-item">
+        <div class="lp-faq-q">What payment methods are supported?</div>
+        <div class="lp-faq-a">We use Razorpay &mdash; UPI, debit/credit cards, net banking, and wallets are all supported.</div>
+      </div>
+      <div class="lp-faq-item">
+        <div class="lp-faq-q">Is my financial data secure?</div>
+        <div class="lp-faq-a">Yes. Your data is stored with encrypted passwords, CSRF protection, rate limiting, and strict session policies. We never share your data.</div>
+      </div>
+      <div class="lp-faq-item">
+        <div class="lp-faq-q">What is the AI Insights feature?</div>
+        <div class="lp-faq-a">It uses Google Gemini AI to analyse your last 3 months of transactions and generate 5 personalised, actionable recommendations specific to your spending patterns.</div>
+      </div>
+      <div class="lp-faq-item">
+        <div class="lp-faq-q">Can I export my data?</div>
+        <div class="lp-faq-a">Pro users can export expenses, income, savings goals, and subscriptions to CSV &mdash; filterable by date range and category.</div>
+      </div>
+      <div class="lp-faq-item">
+        <div class="lp-faq-q">What happens when I hit the free plan limit?</div>
+        <div class="lp-faq-a">You'll see a clear message explaining the limit and a link to upgrade. Your existing data is never deleted.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="lp-cta">
+  <div class="container">
+    <div class="lp-cta-box">
+      <div class="lp-cta-blob-1"></div>
+      <div class="lp-cta-blob-2"></div>
+      <div class="position-relative text-center">
+        <div class="lp-badge mb-3" style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.2);">
+          <i class="bi bi-stars me-1"></i> Start today
+        </div>
+        <h2 class="lp-cta-title">Take control of your finances.</h2>
+        <p class="lp-cta-sub">Join thousands of users who track smarter with FinTrack.</p>
+        <div class="lp-cta-actions">
+          <a href="{% url 'register' %}" class="lp-cta-btn-primary">
+            Start for Free <i class="bi bi-arrow-right ms-2"></i>
+          </a>
+          <a href="#pricing" class="lp-cta-btn-ghost">View Pricing</a>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
 
 {% endblock %}

@@ -18,6 +18,7 @@ from ..services.savings_service import (
     get_total_saved,
     add_contribution,
 )
+from ..services.plan_service import check_limit
 
 
 @login_required(login_url='login')
@@ -52,6 +53,12 @@ def savings_goal_add(request: HttpRequest) -> HttpResponse:
         HttpResponse: Redirect to savings goals page
     """
     if request.method == 'POST':
+        # ── Plan limit check ──────────────────────────────────────────────────
+        allowed, msg = check_limit(request.user, 'savings_goal')
+        if not allowed:
+            messages.error(request, msg)
+            return redirect('pricing')
+        # ─────────────────────────────────────────────────────────────────────
         try:
             goal = SavingsGoal.objects.create(
                 user=request.user,

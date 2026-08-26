@@ -318,12 +318,10 @@ def login_view(request):
 
             if user is not None:
                 if not user.is_active:
-                    # Account exists and password is correct but email not verified
-                    messages.error(
-                        request,
-                        'Your email address is not verified. Please check your inbox or '
-                        '<a href="/accounts/resend-verification/">resend the verification email</a>.'
-                    )
+                    # Don't confirm the password was correct — use the same generic
+                    # error message to avoid leaking valid credential info (OWASP A07).
+                    # The resend hint is shown via show_resend=True without confirming auth.
+                    messages.error(request, "Invalid username or password.")
                     return render(request, "accounts/auth.html", {
                         "form": form,
                         "page_title": "Welcome Back",
@@ -335,7 +333,7 @@ def login_view(request):
                 login(request, user)
                 return redirect("dashboard")
             else:
-                messages.error(request, "Invalid username or password")
+                messages.error(request, "Invalid username or password.")
 
     context = {
         "form": form,
@@ -375,6 +373,7 @@ logout_view = require_POST(logout_view)
 # ----------------------------
 @never_cache
 @login_required(login_url='login')
+@require_POST
 def change_password_view(request):
     """
     Allow authenticated users to change their own password.

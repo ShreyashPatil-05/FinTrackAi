@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
 
@@ -256,6 +257,12 @@
   </div>
 </div>
 
+{% if request.GET.pw_error %}
+<span id="pwErrorFlag" style="display:none;"></span>
+{% endif %}
+
+<script src="{% static 'js/password-strength.js' %}"></script>
+
 <script>
 document.getElementById('avatarInput').addEventListener('change', function() {
     if (this.files && this.files[0]) {
@@ -290,69 +297,10 @@ cpModal.addEventListener('click', function(e) {
     if (e.target === cpModal) cpModal.style.display = 'none';
 });
 
-// Password strength meter + match indicator
-var pw1 = document.getElementById('cpNewPw1');
-var pw2 = document.getElementById('cpNewPw2');
-var matchMsg = document.getElementById('cpMatchMsg');
-var strengthWrap = document.getElementById('cpStrengthWrap');
-var strengthLabel = document.getElementById('cpStrengthLabel');
-var hintsEl = document.getElementById('cpHints');
-var bars = [1,2,3,4].map(function(i){ return document.getElementById('cp-bar-'+i); });
-var COLORS = ['#ef4444','#f97316','#eab308','#22c55e'];
-var LABELS = ['Weak','Fair','Good','Strong'];
-
-function pwScore(val) {
-    var s = 0;
-    if (val.length >= 8)           s++;
-    if (/[A-Z]/.test(val))         s++;
-    if (/[0-9]/.test(val))         s++;
-    if (/[^A-Za-z0-9]/.test(val))  s++;
-    return s;
+// Auto-open password modal on redirect-back-with-error
+if (document.getElementById('pwErrorFlag')) {
+    cpModal.style.display = 'flex';
 }
-function pwHints(val) {
-    var h = [];
-    if (val.length < 8)             h.push('At least 8 characters');
-    if (!/[A-Z]/.test(val))         h.push('Add an uppercase letter');
-    if (!/[0-9]/.test(val))         h.push('Add a number');
-    if (!/[^A-Za-z0-9]/.test(val))  h.push('Add a special character (!@#$...)');
-    return h;
-}
-pw1.addEventListener('input', function() {
-    var val = pw1.value;
-    if (!val) { strengthWrap.style.display = 'none'; return; }
-    strengthWrap.style.display = 'block';
-    var s = pwScore(val);
-    var idx = Math.max(s - 1, 0);
-    var color = COLORS[idx];
-    bars.forEach(function(bar, i) {
-        bar.style.background = i < s ? color : '#e2e8f0';
-    });
-    strengthLabel.textContent = LABELS[idx];
-    strengthLabel.style.color = color;
-    hintsEl.innerHTML = pwHints(val).map(function(h) {
-        return '<li style="display:flex;align-items:center;gap:5px;margin-bottom:2px;"><i class="bi bi-x-circle" style="color:#ef4444;font-size:11px;"></i>' + h + '</li>';
-    }).join('');
-    if (pw2.value) checkMatch();
-});
-
-function checkMatch() {
-    if (!pw2.value) { matchMsg.style.display = 'none'; return; }
-    matchMsg.style.display = 'block';
-    if (pw1.value === pw2.value) {
-        matchMsg.innerHTML = '<i class="bi bi-check-circle" style="color:#22c55e;"></i> Passwords match';
-        matchMsg.style.color = '#22c55e';
-    } else {
-        matchMsg.innerHTML = '<i class="bi bi-x-circle" style="color:#ef4444;"></i> Passwords do not match';
-        matchMsg.style.color = '#ef4444';
-    }
-}
-pw1.addEventListener('input', function() { if (pw2.value) checkMatch(); });
-pw2.addEventListener('input', checkMatch);
-
-{% if request.GET.pw_error %}
-// Auto-open modal if redirected back after a failed password change
-cpModal.style.display = 'flex';
-{% endif %}
 </script>
 
 {% endblock %}

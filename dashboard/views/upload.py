@@ -12,9 +12,11 @@ from django.http import HttpRequest, HttpResponse
 
 from expenses.models import Expense, DEFAULT_CATEGORIES
 from ..models import CustomCategory
+from ..decorators import plan_required
 
 
 @login_required(login_url='login')
+@plan_required('csv_import')
 def settings_upload(request: HttpRequest) -> HttpResponse:
     """
     Upload and import expenses from CSV file.

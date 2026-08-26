@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% load static %}
+{% load fintrack_filters %}
+
+{% block title %}Pricing — FinTrack{% endblock %}
+
+{% block content %}
+
+<div class="prc-page">
+
+  <!-- Header -->
+  <div class="prc-header mb-4">
+    <div>
+      <h4 class="fw-bold mb-0"><i class="bi bi-stars me-2" style="color:#6366f1;"></i>Plans &amp; Pricing</h4>
+      <p class="text-muted small mb-0">Upgrade to Pro for unlimited access and AI insights.</p>
+    </div>
+    {% if is_pro %}
+    <div class="prc-pro-badge">
+      <i class="bi bi-patch-check-fill me-1"></i>
+      Pro — {{ plan|title }} · expires {{ plan_expires_at|date:"d M Y" }}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Usage meters (free users only) -->
+  {% if not is_pro %}
+  <div class="prc-usage-card mb-4">
+    <div class="prc-usage-title">
+      <i class="bi bi-bar-chart me-2" style="color:#6366f1;"></i>Your Free Plan Usage
+    </div>
+    <div class="prc-usage-grid">
+
+      <div class="prc-usage-row">
+        <span class="prc-usage-label">Expenses this month</span>
+        <span class="prc-usage-count">{{ usage.expenses }} / {{ usage.limits.expenses_per_month }}</span>
+        <div class="prc-usage-bar-track">
+          <div class="prc-usage-bar-fill {% if usage.expenses >= usage.limits.expenses_per_month %}prc-bar--over{% elif usage.expenses >= usage.limits.expenses_per_month|add:"-10" %}prc-bar--warn{% else %}prc-bar--ok{% endif %}"
+               style="width:{% widthratio usage.expenses usage.limits.expenses_per_month 100 %}%;max-width:100%;"></div>
+        </div>
+      </div>
+
+      <div class="prc-usage-row">
+        <span class="prc-usage-label">Income entries this month</span>
+        <span class="prc-usage-count">{{ usage.income }} / {{ usage.limits.income_per_month }}</span>
+        <div class="prc-usage-bar-track">
+          <div class="prc-usage-bar-fill {% if usage.income >= usage.limits.income_per_month %}prc-bar--over{% else %}prc-bar--ok{% endif %}"
+               style="width:{% widthratio usage.income usage.limits.income_per_month 100 %}%;max-width:100%;"></div>
+        </div>
+      </div>
+
+      <div class="prc-usage-row">
+        <span class="prc-usage-label">Savings goals</span>
+        <span class="prc-usage-count">{{ usage.savings_goals }} / {{ usage.limits.savings_goals }}</span>
+        <div class="prc-usage-bar-track">
+          <div class="prc-usage-bar-fill {% if usage.savings_goals >= usage.limits.savings_goals %}prc-bar--over{% else %}prc-bar--ok{% endif %}"
+               style="width:{% widthratio usage.savings_goals usage.limits.savings_goals 100 %}%;max-width:100%;"></div>
+        </div>
+      </div>
+
+      <div class="prc-usage-row">
+        <span class="prc-usage-label">Subscriptions</span>
+        <span class="prc-usage-count">{{ usage.subscriptions }} / {{ usage.limits.subscriptions }}</span>
+        <div class="prc-usage-bar-track">
+          <div class="prc-usage-bar-fill {% if usage.subscriptions >= usage.limits.subscriptions %}prc-bar--over{% else %}prc-bar--ok{% endif %}"
+               style="width:{% widthratio usage.subscriptions usage.limits.subscriptions 100 %}%;max-width:100%;"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Plan cards -->
+  <div class="prc-plans-grid mb-4">
+
+    <!-- Free -->
+    <div class="prc-plan-card {% if not is_pro %}prc-plan--current{% endif %}">
+      <div class="prc-plan-name">Free</div>
+      <div class="prc-plan-price">₹0 <span>/ forever</span></div>
+      <div class="prc-plan-desc">Get started with core tracking.</div>
+      <ul class="prc-plan-features">
+        <li><i class="bi bi-check-circle-fill" style="color:#16a34a;"></i> 50 expenses / month</li>
+        <li><i class="bi bi-check-circle-fill" style="color:#16a34a;"></i> 20 income entries / month</li>
+        <li><i class="bi bi-check-circle-fill" style="color:#16a34a;"></i> 2 savings goals</li>
+        <li><i class="bi bi-check-circle-fill" style="color:#16a34a;"></i> 3 subscriptions</li>
+        <li><i class="bi bi-check-circle-fill" style="color:#16a34a;"></i> Budget tracking</li>
+        <li class="prc-feat-locked"><i class="bi bi-lock-fill"></i> AI Insights</li>
+        <li class="prc-feat-locked"><i class="bi bi-lock-fill"></i> CSV import &amp; export</li>
+        <li class="prc-feat-locked"><i class="bi bi-lock-fill"></i> Bank webhook</li>
+      </ul>
+      {% if not is_pro %}
+      <div class="prc-plan-btn prc-btn-current">Current Plan</div>
+      {% else %}
+      <a href="{% url 'dashboard' %}" class="prc-plan-btn prc-btn-ghost">Go to Dashboard</a>
+      {% endif %}
+    </div>
+
+    <!-- Pro -->
+    <div class="prc-plan-card prc-plan--pro {% if is_pro %}prc-plan--current{% endif %}">
+      <div class="prc-plan-popular">Most Popular</div>
+      <div class="prc-plan-name" style="color:#6366f1;">Pro</div>
+
+      <!-- Plan toggle -->
+      <div class="prc-toggle mb-3" id="planToggle">
+        <button class="prc-toggle-btn active" id="btnYearly" onclick="selectPlan('yearly')">Yearly</button>
+        <button class="prc-toggle-btn" id="btnMonthly" onclick="selectPlan('monthly')">Monthly</button>
+      </div>
+
+      <div class="prc-plan-price">
+        <span id="proPrice">₹499</span>
+        <span id="proPeriod">/ year</span>
+      </div>
+      <div class="prc-plan-save" id="proSave">Save ~30% vs monthly</div>
+      <div class="prc-plan-desc">Everything, unlimited.</div>
+
+      <ul class="prc-plan-features">
+        <li><i class="bi bi-check-circle-fill" style="color:#6366f1;"></i> Unlimited expenses</li>
+        <li><i class="bi bi-check-circle-fill" style="color:#6366f1;"></i> Unlimited income entries</li>
+        <li><i class="bi bi-check-circle-fill" style="color:#6366f1;"></i> Unlimited savings goals</li>
+        <li><i class="bi bi-check-circle-fill" style="color:#6366f1;"></i> Unlimited subscriptions</li>
+        <li><i class="bi bi-check-circle-fill" style="color:#6366f1;"></i> Budget tracking</li>
+        <li><i class="bi bi-stars me-1" style="color:#6366f1;"></i><strong>AI Insights (Gemini)</strong></li>
+        <li><i class="bi bi-check-circle-fill" style="color:#6366f1;"></i> CSV import &amp; export</li>
+        <li><i class="bi bi-check-circle-fill" style="color:#6366f1;"></i> Bank webhook</li>
+      </ul>
+
+      {% if is_pro %}
+        <div class="prc-plan-btn prc-btn-current">Active Plan</div>
+      {% elif razorpay_key %}
+        <button class="prc-plan-btn prc-btn-pro" id="upgradeBtn" onclick="startPayment()">
+          <i class="bi bi-lightning-fill me-1"></i> Upgrade to Pro
+        </button>
+        <p class="prc-plan-note">UPI · Cards · Net Banking · Wallets</p>
+      {% else %}
+        <div class="prc-plan-btn prc-btn-unavailable">Payment not configured</div>
+        <p class="prc-plan-note">Set RAZORPAY_KEY_ID in .env to enable payments.</p>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- Payment history -->
+  {% if payment_history %}
+  <div class="prc-history-card">
+    <div class="prc-history-title"><i class="bi bi-receipt me-2"></i>Payment History</div>
+    <table class="prc-history-table">
+      <thead>
+        <tr><th>Date</th><th>Plan</th><th>Amount</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for p in payment_history %}
+        <tr>
+          <td>{{ p.created_at|date:"d M Y" }}</td>
+          <td>{{ p.get_plan_display }}</td>
+          <td>₹{{ p.amount }}</td>
+          <td><span class="prc-status prc-status--{{ p.status }}">{{ p.status|title }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Razorpay checkout form (hidden) -->
+<form id="paymentForm" method="post" action="{% url 'verify_payment' %}">
+  {% csrf_token %}
+  <input type="hidden" id="rzpOrderId"   name="razorpay_order_id">
+  <input type="hidden" id="rzpPaymentId" name="razorpay_payment_id">
+  <input type="hidden" id="rzpSignature" name="razorpay_signature">
+</form>
+
+{% if razorpay_key %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+{% endif %}
+
+<!-- Data for JS -->
+<span id="pricingData"
+      data-rzp-key="{{ razorpay_key }}"
+      data-username="{{ request.user.username }}"
+      data-email="{{ request.user.email }}"
+      data-csrf="{% csrf_token %}"
+      style="display:none;"></span>
+
+<script src="{% static 'js/pricing.js' %}"></script>
+
+{% endblock %}

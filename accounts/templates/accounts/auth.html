@@ -204,6 +204,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{% static 'js/password-strength.js' %}"></script>
 <script>
     // Theme toggle
     (function() {
@@ -221,108 +222,24 @@
         });
     })();
 
-    // Password toggle
+    // Password show/hide toggle
     document.querySelectorAll('input[type="password"]').forEach(function(input) {
         var wrapper = document.createElement('div');
         wrapper.className = 'pw-wrapper';
         input.parentNode.insertBefore(wrapper, input);
         wrapper.appendChild(input);
-
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'pw-toggle';
         btn.innerHTML = '<i class="bi bi-eye"></i>';
         btn.setAttribute('aria-label', 'Toggle password visibility');
         wrapper.appendChild(btn);
-
         btn.addEventListener('click', function() {
             var isHidden = input.type === 'password';
             input.type = isHidden ? 'text' : 'password';
-            btn.innerHTML = isHidden
-                ? '<i class="bi bi-eye-slash"></i>'
-                : '<i class="bi bi-eye"></i>';
+            btn.innerHTML = isHidden ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
         });
     });
-
-    // ── Password strength meter (register only) ──────────────
-    (function() {
-        var pw1 = document.getElementById('id_password1');
-        var pw2 = document.getElementById('id_password2');
-        if (!pw1) return;
-
-        var wrap      = document.getElementById('pw-strength-wrap');
-        var label     = document.getElementById('pw-strength-label');
-        var hints     = document.getElementById('pw-hints');
-        var matchMsg  = document.getElementById('pw-match-msg');
-        var bars      = [1,2,3,4].map(function(i){ return document.getElementById('pw-bar-'+i); });
-
-        var style = document.createElement('style');
-        style.textContent = [
-            '.pw-bar{flex:1;height:4px;border-radius:4px;background:#e2e8f0;transition:background .25s;}',
-            '[data-theme="dark"] .pw-bar{background:#334155;}',
-        ].join('');
-        document.head.appendChild(style);
-
-        var COLORS = ['#ef4444','#f97316','#eab308','#22c55e'];
-        var LABELS = ['Weak','Fair','Good','Strong'];
-
-        function score(val) {
-            var s = 0;
-            if (val.length >= 8)  s++;
-            if (/[A-Z]/.test(val)) s++;
-            if (/[0-9]/.test(val)) s++;
-            if (/[^A-Za-z0-9]/.test(val)) s++;
-            return s;
-        }
-
-        function getHints(val) {
-            var h = [];
-            if (val.length < 8)            h.push('At least 8 characters');
-            if (!/[A-Z]/.test(val))        h.push('Add an uppercase letter');
-            if (!/[0-9]/.test(val))        h.push('Add a number');
-            if (!/[^A-Za-z0-9]/.test(val)) h.push('Add a special character (!@#$...)');
-            return h;
-        }
-
-        pw1.addEventListener('input', function() {
-            var val = pw1.value;
-            if (!val) { wrap.style.display = 'none'; return; }
-            wrap.style.display = 'block';
-
-            var s = score(val);
-            var idx = Math.max(s - 1, 0);
-            var color = COLORS[idx];
-
-            bars.forEach(function(bar, i) {
-                var dark = document.documentElement.getAttribute('data-theme') === 'dark';
-                bar.style.background = i < s ? color : (dark ? '#334155' : '#e2e8f0');
-            });
-
-            label.textContent = LABELS[idx];
-            label.style.color = color;
-
-            hints.innerHTML = getHints(val).map(function(h) {
-                return '<li style="display:flex;align-items:center;gap:5px;margin-bottom:2px;"><i class="bi bi-x-circle" style="color:#ef4444;font-size:11px;"></i>' + h + '</li>';
-            }).join('');
-
-            if (pw2 && pw2.value) checkMatch();
-        });
-
-        function checkMatch() {
-            if (!pw2 || !matchMsg) return;
-            if (!pw2.value) { matchMsg.style.display = 'none'; return; }
-            matchMsg.style.display = 'block';
-            if (pw1.value === pw2.value) {
-                matchMsg.innerHTML = '<i class="bi bi-check-circle" style="color:#22c55e;"></i> Passwords match';
-                matchMsg.style.color = '#22c55e';
-            } else {
-                matchMsg.innerHTML = '<i class="bi bi-x-circle" style="color:#ef4444;"></i> Passwords do not match';
-                matchMsg.style.color = '#ef4444';
-            }
-        }
-
-        if (pw2) pw2.addEventListener('input', checkMatch);
-    })();
 </script>
 </body>
 </html>

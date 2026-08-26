@@ -16,9 +16,11 @@ from expenses.forms import get_category_choices
 from expenses.models import Expense
 from ..models import Income, Subscription, SavingsGoal
 from ..utils import get_available_years
+from ..decorators import plan_required
 
 
 @login_required(login_url='login')
+@plan_required('export')
 def export_data(request: HttpRequest) -> HttpResponse:
     """
     Export user's financial data to CSV format.

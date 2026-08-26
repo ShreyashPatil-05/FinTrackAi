@@ -30,6 +30,7 @@ from ..services.expense_service import (
 from ..services.income_service import get_monthly_income
 from ..services.subscription_service import get_total_monthly_cost, get_active_subscriptions
 from ..services.savings_service import get_goals_with_progress
+from ..services.plan_service import check_limit as _plan_check_limit
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +43,12 @@ def _call_gemini(prompt: str) -> str | None:
     if not api_key:
         return None
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        response = model.generate_content(prompt)
+        from google import genai
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
         return response.text
     except Exception as e:
         logger.error(f"Gemini API error: {e}", exc_info=True)
@@ -311,59 +314,81 @@ def _rule_based_insights(data: dict) -> list:
 
 # ── Main view ────────────────────────────────────────────────────────────────
 
+def _build_mom(monthly: list) -> dict | None:
+    """Build month-over-month comparison dict from monthly_data list."""
+    if len(monthly) < 2:
+        return None
+    curr, prev = monthly[-1], monthly[-2]
+    return {
+        'curr_month':   curr['month'],
+        'prev_month':   prev['month'],
+        'income_curr':  curr['income'],
+        'income_prev':  prev['income'],
+        'spent_curr':   curr['spent'],
+        'spent_prev':   prev['spent'],
+        'saved_curr':   curr['saved'],
+        'saved_prev':   prev['saved'],
+        'income_delta': round(curr['income'] - prev['income'], 0),
+        'spent_delta':  round(curr['spent']  - prev['spent'],  0),
+        'saved_delta':  round(curr['saved']  - prev['saved'],  0),
+        'rate_curr':    curr['savings_rate'],
+        'rate_prev':    prev['savings_rate'],
+    }
+
+
 @login_required(login_url='login')
 def insights_view(request: HttpRequest) -> HttpResponse:
-    """AI Financial Insights page — powered by Gemini with rule-based fallback."""
-    data = _gather_user_data(request.user)
+    """
+    AI Financial Insights page.
+
+    Free users see rule-based insights only.
+    Pro users get Gemini AI insights on auto-load and on refresh.
+
+    - GET  (normal):  Renders page immediately with rule-based insights.
+                      If user is Pro, the template auto-fires an AJAX call
+                      to upgrade to Gemini results in the background.
+    - GET  (AJAX):    Returns JSON with AI or rule-based insights.
+                      Returns {locked: true} for free users so JS can show
+                      the upgrade prompt instead.
+    """
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    # ── Check plan — AI Insights is Pro-only ─────────────────────────────────
+    allowed, _ = _plan_check_limit(request.user, 'ai_insights')
     api_key_set = bool(os.environ.get('GEMINI_API_KEY', ''))
 
-    insights = []
-    ai_used = False
+    if is_ajax:
+        if not allowed:
+            return JsonResponse({'locked': True, 'ai_used': False, 'insights': []})
 
-    if api_key_set:
-        raw = _call_gemini(_build_prompt(data))
-        insights = _parse_insights(raw)
-        if insights:
-            ai_used = True
+        data     = _gather_user_data(request.user)
+        insights = []
+        ai_used  = False
+        if api_key_set:
+            raw      = _call_gemini(_build_prompt(data))
+            insights = _parse_insights(raw)
+            if insights:
+                ai_used = True
+        if not insights:
+            insights = _rule_based_insights(data)
+        return JsonResponse({'insights': insights, 'ai_used': ai_used, 'locked': False})
 
-    if not insights:
-        insights = _rule_based_insights(data)
-
-    # Month-over-month comparison
-    monthly = data['monthly_data']
-    mom = None
-    if len(monthly) >= 2:
-        curr, prev = monthly[-1], monthly[-2]
-        mom = {
-            'curr_month': curr['month'],
-            'prev_month': prev['month'],
-            'income_curr': curr['income'],
-            'income_prev': prev['income'],
-            'spent_curr': curr['spent'],
-            'spent_prev': prev['spent'],
-            'saved_curr': curr['saved'],
-            'saved_prev': prev['saved'],
-            'income_delta': round(curr['income'] - prev['income'], 0),
-            'spent_delta': round(curr['spent'] - prev['spent'], 0),
-            'saved_delta': round(curr['saved'] - prev['saved'], 0),
-            'rate_curr': curr['savings_rate'],
-            'rate_prev': prev['savings_rate'],
-        }
-
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({'insights': insights, 'ai_used': ai_used})
+    # ── Normal page load ──────────────────────────────────────────────────────
+    data = _gather_user_data(request.user)
+    insights = _rule_based_insights(data)
 
     return render(request, 'dashboard/insights.html', {
-        'insights': insights,
-        'ai_used': ai_used,
-        'api_key_set': api_key_set,
-        'monthly_data': data['monthly_data'],
-        'budget_status': data['budget_status'],
-        'anomalies': data['anomalies'],
-        'goals': data['goals'],
-        'active_subs': data['active_subs'],
+        'insights':           insights,
+        'ai_used':            False,
+        'api_key_set':        api_key_set,      # true key presence — for admin banner only
+        'is_pro':             allowed,           # whether user can access AI
+        'monthly_data':       data['monthly_data'],
+        'budget_status':      data['budget_status'],
+        'anomalies':          data['anomalies'],
+        'goals':              data['goals'],
+        'active_subs':        data['active_subs'],
         'total_monthly_subs': data['total_monthly_subs'],
-        'mom': mom,
-        'current_month': data['current_month'],
-        'current_year': data['current_year'],
+        'mom':                _build_mom(data['monthly_data']),
+        'current_month':      data['current_month'],
+        'current_year':       data['current_year'],
     })

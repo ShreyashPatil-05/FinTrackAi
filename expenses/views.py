@@ -18,6 +18,7 @@ from calendar import month_name
 from .models import Expense, DEFAULT_CATEGORIES
 from .forms import ExpenseForm, get_category_choices
 from dashboard.utils import get_month_navigation, get_available_years, get_sum_amount
+from dashboard.services.plan_service import check_limit
 
 
 def _all_categories(user):
@@ -133,6 +134,12 @@ def add_expense(request):
     if request.method == 'POST':
         form = ExpenseForm(request.POST, user=request.user)
         if form.is_valid():
+            # ── Plan limit check ──────────────────────────────────────────────
+            allowed, msg = check_limit(request.user, 'expense')
+            if not allowed:
+                messages.error(request, msg)
+                return redirect('pricing')
+            # ─────────────────────────────────────────────────────────────────
             expense = form.save(commit=False)
             expense.user = request.user
             expense.save()

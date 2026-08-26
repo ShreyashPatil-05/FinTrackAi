@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% load fintrack_filters %}
 {% block content %}
 
@@ -229,40 +230,5 @@
   </div>
 </div>
 
-<script>
-  // Open/close Add modal
-  function openAddSub() { document.getElementById('addSubModal').style.display = 'flex'; }
-  function closeAddSub() { document.getElementById('addSubModal').style.display = 'none'; }
-  function closeEditSub() { document.getElementById('editSubModal').style.display = 'none'; }
-
-  document.getElementById('openAddSubModal').addEventListener('click', openAddSub);
-  var emptyBtn = document.getElementById('openAddSubModalEmpty');
-  if (emptyBtn) emptyBtn.addEventListener('click', openAddSub);
-  document.getElementById('closeAddSubModal').addEventListener('click', closeAddSub);
-  document.getElementById('cancelAddSubModal').addEventListener('click', closeAddSub);
-  document.getElementById('closeEditSubModal').addEventListener('click', closeEditSub);
-  document.getElementById('cancelEditSubModal').addEventListener('click', closeEditSub);
-
-  // Edit button — populate and open edit modal
-  document.addEventListener('click', function(e) {
-    var btn = e.target.closest('.sub-edit-btn');
-    if (!btn) return;
-    document.getElementById('editSubName').value    = btn.dataset.name;
-    document.getElementById('editSubAmount').value  = btn.dataset.amount;
-    document.getElementById('editSubBilling').value = btn.dataset.nextBilling;
-    ['editSubCycle','editSubCategory','editSubStatus'].forEach(function(id) {
-      var key = { editSubCycle:'cycle', editSubCategory:'category', editSubStatus:'status' }[id];
-      var sel = document.getElementById(id);
-      for (var i = 0; i < sel.options.length; i++)
-        sel.options[i].selected = sel.options[i].value === btn.dataset[key];
-    });
-    document.getElementById('editSubForm').action = '/subscriptions/' + btn.dataset.pk + '/edit/';
-    document.getElementById('editSubModal').style.display = 'flex';
-  });
-
-  // Close modals on overlay click
-  document.querySelectorAll('.inc-modal-overlay').forEach(function(o) {
-    o.addEventListener('click', function(e) { if (e.target === o) o.style.display = 'none'; });
-  });
-</script>
+<script src="{% static 'js/subscriptions.js' %}"></script>
 {% endblock %}

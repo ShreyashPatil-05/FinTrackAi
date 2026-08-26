@@ -1,5 +1,5 @@
 {% load static %}
-<nav class="navbar navbar-expand-lg py-2 {% if request.resolver_match.url_name == 'landing' %}navbar-landing{% else %}navbar-app shadow-sm{% endif %}">
+<nav class="navbar navbar-expand-lg py-1   {% if request.resolver_match.url_name == 'landing' %}navbar-landing{% else %}navbar-app shadow-sm{% endif %}">
     <div class="container">
 
         <!-- Brand -->
@@ -67,9 +67,14 @@
 
                 {% else %}
                     {% if not hide_auth_nav %}
-                    <li class="nav-item nav-auth-btns">
-                        <a class="btn btn-nav-ghost" href="{% url 'login' %}">Sign In</a>
-                        <a class="btn btn-nav-primary" href="{% url 'register' %}">Get Started</a>
+                    {% if request.resolver_match.url_name == 'landing' %}
+                    <li class="nav-item"><a class="nav-link px-3" href="#features">Features</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="#pricing">Pricing</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="#faq">FAQ</a></li>
+                    {% endif %}
+                    <li class="nav-item nav-auth-btns ms-3">
+                        <a class="btn btn-nav-ghost" href="{% url 'login' %}">Login</a>
+                        <a class="btn btn-nav-primary" href="{% url 'register' %}">Start Free</a>
                     </li>
                     {% endif %}
                 {% endif %}

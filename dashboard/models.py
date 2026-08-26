@@ -11,27 +11,101 @@ from django.db.models import Sum
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 
 
 class UserProfile(models.Model):
     """
-    Extended user profile with avatar and onboarding status.
-    
+    Extended user profile with avatar, onboarding status, and SaaS plan.
+
     Attributes:
         user: One-to-one link to Django User
         avatar: Profile picture (stored in media/avatars/)
         onboarding_complete: Whether user has completed the dashboard tour
+        plan: Current subscription plan (free / monthly / yearly)
+        plan_expires_at: When the Pro plan expires (None = never expires)
     """
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
+    PLAN_FREE    = 'free'
+    PLAN_MONTHLY = 'monthly'
+    PLAN_YEARLY  = 'yearly'
+    PLAN_CHOICES = [
+        ('free',    'Free'),
+        ('monthly', 'Monthly Pro'),
+        ('yearly',  'Yearly Pro'),
+    ]
+
+    user                = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    avatar              = models.ImageField(upload_to='avatars/', null=True, blank=True)
     onboarding_complete = models.BooleanField(default=False)
+    plan                = models.CharField(max_length=10, choices=PLAN_CHOICES, default='free')
+    plan_expires_at     = models.DateTimeField(null=True, blank=True)
+
+    def is_pro(self) -> bool:
+        """Return True if the user has an active Pro plan."""
+        if self.plan in (self.PLAN_MONTHLY, self.PLAN_YEARLY):
+            if self.plan_expires_at is None or self.plan_expires_at > timezone.now():
+                return True
+        return False
 
     def __str__(self):
         return f"{self.user.username} profile"
-    
+
     def __repr__(self):
-        return f"<UserProfile: {self.user.username} (onboarded={self.onboarding_complete})>"
+        return f"<UserProfile: {self.user.username} plan={self.plan} onboarded={self.onboarding_complete}>"
+
+
+class Payment(models.Model):
+    """
+    Records a Razorpay payment transaction for a Pro plan upgrade.
+
+    Attributes:
+        user: User who made the payment
+        plan: Which plan was purchased (monthly / yearly)
+        amount: Amount in INR (₹49 or ₹499)
+        razorpay_order_id: Razorpay order identifier
+        razorpay_payment_id: Razorpay payment identifier (set after capture)
+        razorpay_signature: HMAC signature for verification
+        status: pending → captured / failed / refunded
+        created_at / updated_at: Timestamps
+    """
+    STATUS_PENDING  = 'pending'
+    STATUS_CAPTURED = 'captured'
+    STATUS_FAILED   = 'failed'
+    STATUS_REFUNDED = 'refunded'
+    STATUS_CHOICES = [
+        ('pending',  'Pending'),
+        ('captured', 'Captured'),
+        ('failed',   'Failed'),
+        ('refunded', 'Refunded'),
+    ]
+    PLAN_CHOICES = [
+        ('monthly', 'Monthly — ₹49'),
+        ('yearly',  'Yearly — ₹499'),
+    ]
+
+    user                = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments')
+    plan                = models.CharField(max_length=10, choices=PLAN_CHOICES)
+    amount              = models.DecimalField(max_digits=10, decimal_places=2)
+    razorpay_order_id   = models.CharField(max_length=100, unique=True)
+    razorpay_payment_id = models.CharField(max_length=100, blank=True)
+    razorpay_signature  = models.CharField(max_length=255, blank=True)
+    status              = models.CharField(max_length=12, choices=STATUS_CHOICES, default='pending')
+    created_at          = models.DateTimeField(auto_now_add=True)
+    updated_at          = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['razorpay_order_id']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} — {self.plan} — {self.status} — ₹{self.amount}"
+
+    def __repr__(self):
+        return f"<Payment: {self.user.username} {self.plan} {self.status} ₹{self.amount}>"
 
 
 class CustomCategory(models.Model):

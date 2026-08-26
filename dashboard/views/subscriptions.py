@@ -21,6 +21,7 @@ from ..services.subscription_service import (
     get_due_today_pks,
     get_upcoming_count,
 )
+from ..services.plan_service import check_limit
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,12 @@ def subscription_add(request: HttpRequest) -> HttpResponse:
         HttpResponse: Redirect to subscriptions page
     """
     if request.method == 'POST':
+        # ── Plan limit check ──────────────────────────────────────────────────
+        allowed, msg = check_limit(request.user, 'subscription')
+        if not allowed:
+            messages.error(request, msg)
+            return redirect('pricing')
+        # ─────────────────────────────────────────────────────────────────────
         try:
             billing_date = request.POST.get('next_billing', '').strip()
             sub = Subscription.objects.create(

@@ -35,3 +35,26 @@ class EmailVerificationToken(models.Model):
         """Validate token data — only check expiry on existing (saved) tokens"""
         if self.pk and self.is_expired():
             raise ValidationError("This verification token has expired.")
+
+class PasswordResetToken(models.Model):
+    """
+    Secure password reset token.
+
+    - UUID token, 1-hour expiry
+    - One active token per user (old ones deleted on new request)
+    - Deleted immediately after use
+    """
+    user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_reset_tokens')
+    token      = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Password Reset Token"
+        verbose_name_plural = "Password Reset Tokens"
+
+    def __str__(self):
+        return f"Reset token for {self.user.username}"
+
+    def is_expired(self):
+        """Tokens expire after 1 hour."""
+        return timezone.now() - self.created_at > timedelta(hours=1)

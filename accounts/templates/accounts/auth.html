@@ -36,6 +36,12 @@
 
     <!-- ── Left dark panel ── -->
     <div class="auth-left">
+        <!-- Floating particles -->
+        <span class="auth-particle auth-particle-1"></span>
+        <span class="auth-particle auth-particle-2"></span>
+        <span class="auth-particle auth-particle-3"></span>
+        <span class="auth-particle auth-particle-4"></span>
+        <span class="auth-particle auth-particle-5"></span>
         <div class="auth-left-inner">
 
             <!-- Logo -->
@@ -81,7 +87,7 @@
     </div>
 
     <!-- ── Right form panel ── -->
-    <div class="auth-right">
+    <div class="auth-right {% if page_type == 'register' %}auth-right--register{% endif %}">
         <!-- Theme toggle -->
         <button class="auth-theme-btn" id="authThemeToggle" title="Toggle theme">
             <i class="bi bi-moon-fill" id="authThemeIcon"></i>
@@ -131,7 +137,6 @@
                             </div>
                         {% endif %}
                         {% if page_type == "register" and field.html_name == "password1" %}
-                        <!-- Password strength meter -->
                         <div id="pw-strength-wrap" style="margin-top:8px;display:none;">
                             <div style="display:flex;gap:4px;margin-bottom:5px;">
                                 <div class="pw-bar" id="pw-bar-1"></div>
@@ -144,7 +149,6 @@
                         </div>
                         {% endif %}
                         {% if page_type == "register" and field.html_name == "password2" %}
-                        <!-- Password match indicator -->
                         <div id="pw-match-msg" style="font-size:12px;margin-top:5px;display:none;"></div>
                         {% endif %}
                     </div>
@@ -153,6 +157,16 @@
                 {% if page_type == "register" and recaptcha_site_key %}
                 <div style="display:flex;justify-content:center;margin-bottom:12px;">
                     <div class="g-recaptcha"></div>
+                </div>
+                {% endif %}
+
+                {% if page_type == "login" %}
+                <div class="auth-remember-row">
+                    <label class="auth-remember-label">
+                        <input type="checkbox" name="remember_me" class="auth-remember-check">
+                        <span>Remember me</span>
+                    </label>
+                    <a href="{% url 'forgot_password' %}" class="auth-forgot-link">Forgot password?</a>
                 </div>
                 {% endif %}
 
@@ -182,7 +196,10 @@
                 {% endif %}
             </div>
 
-            {% if page_type == "login" or page_type == "register" %}
+        </div><!-- /.auth-form-wrap -->
+
+        {% if page_type == "login" or page_type == "register" %}
+        <div style="width:100%;max-width:460px;margin-top:0.75rem;">
             <div class="auth-divider"><span>or</span></div>
             <form method="post" action="/social/google/login/" style="margin:0;">
                 {% csrf_token %}
@@ -196,9 +213,8 @@
                     Continue with Google
                 </button>
             </form>
-            {% endif %}
-
         </div>
+        {% endif %}
     </div>
 
 </div>
@@ -240,6 +256,20 @@
             btn.innerHTML = isHidden ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
         });
     });
+
+    // Shake form on error messages
+    (function() {
+        var hasError = document.querySelector('.auth-alert--error');
+        if (hasError) {
+            var wrap = document.querySelector('.auth-form-wrap');
+            if (wrap) {
+                wrap.classList.add('shake');
+                wrap.addEventListener('animationend', function() {
+                    wrap.classList.remove('shake');
+                }, { once: true });
+            }
+        }
+    })();
 </script>
 </body>
 </html>

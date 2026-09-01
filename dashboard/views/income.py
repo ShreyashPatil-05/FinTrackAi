@@ -9,6 +9,7 @@ from decimal import Decimal, InvalidOperation
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.http import HttpRequest, HttpResponse
 
@@ -91,9 +92,18 @@ def income_add(request: HttpRequest) -> HttpResponse:
         try:
             inc_date = request.POST.get('date', '').strip()
             amount = Decimal(request.POST.get('amount', '0'))
+
+            # Validate date format before hitting the DB
+            try:
+                parsed_date = datetime.strptime(inc_date, '%Y-%m-%d')
+            except ValueError:
+                messages.error(request, 'Invalid date. Use YYYY-MM-DD format.')
+                return redirect('settings_income')
+
             if amount <= 0:
                 messages.error(request, 'Amount must be greater than zero.')
                 return redirect('settings_income')
+
             Income.objects.create(
                 user=request.user,
                 date=inc_date,
@@ -102,8 +112,7 @@ def income_add(request: HttpRequest) -> HttpResponse:
                 amount=amount,
             )
             messages.success(request, 'Income added.')
-            d = datetime.strptime(inc_date, '%Y-%m-%d')
-            return redirect(f"/settings/income/?month={d.month}&year={d.year}")
+            return redirect(f"/settings/income/?month={parsed_date.month}&year={parsed_date.year}")
         except (InvalidOperation, KeyError):
             messages.error(request, 'Failed to add income. Check the amount entered.')
     return redirect('settings_income')
@@ -140,9 +149,10 @@ def income_edit(request: HttpRequest, pk: int) -> HttpResponse:
     return redirect('settings_income')
 
 
+@require_POST
 @login_required(login_url='login')
 def income_delete(request: HttpRequest, pk: int) -> HttpResponse:
-    """Delete an income entry."""
+    """Delete an income entry. Requires POST — GET returns 405."""
     income = get_object_or_404(Income, pk=pk, user=request.user)
     income.delete()
     messages.success(request, 'Income entry deleted.')

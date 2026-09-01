@@ -5,6 +5,7 @@ Import expenses from CSV files.
 """
 import csv
 import io
+from decimal import Decimal, InvalidOperation
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -34,6 +35,7 @@ def settings_upload(request: HttpRequest) -> HttpResponse:
         HttpResponse: Upload settings page
     """
     preview   = None
+    csv_data  = ''     # CSV content passed back via hidden form field
     imported  = 0
     skipped   = []
     error     = None
@@ -60,12 +62,12 @@ def settings_upload(request: HttpRequest) -> HttpResponse:
                         error = "Too many rows. Maximum 5,000 rows per import."
                     else:
                         preview = rows[:5]
-                        request.session['csv_data'] = decoded
+                        csv_data = decoded   # passed to template; returned via hidden field
                 except Exception as e:
                     error = f"Could not read file: {e}"
 
         elif action == "import":
-            decoded = request.session.pop('csv_data', None)
+            decoded = request.POST.get('csv_data', '').strip()
             if decoded:
                 reader = csv.DictReader(io.StringIO(decoded))
                 custom_cats = list(CustomCategory.objects.filter(
@@ -87,10 +89,10 @@ def settings_upload(request: HttpRequest) -> HttpResponse:
 
                     # Validate amount
                     try:
-                        amount = float(amount_s)
+                        amount = Decimal(amount_s)
                         if amount <= 0:
-                            raise ValueError
-                    except (ValueError, TypeError):
+                            raise InvalidOperation
+                    except (InvalidOperation, ValueError, TypeError):
                         skipped.append(f"Row {row_num} ({title}): invalid amount \"{amount_s}\"")
                         continue
 
@@ -122,6 +124,7 @@ def settings_upload(request: HttpRequest) -> HttpResponse:
     return render(request, 'dashboard/settings.html', {
         'section': 'upload',
         'preview': preview,
+        'csv_data': csv_data,
         'imported': imported,
         'skipped': skipped,
         'error': error,

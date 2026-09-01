@@ -5,6 +5,7 @@ Business logic for savings goals, contributions, and completion predictions.
 """
 import math
 from datetime import date
+from decimal import Decimal
 from dateutil.relativedelta import relativedelta
 
 from django.db import transaction
@@ -34,10 +35,10 @@ def get_total_saved(user):
         user: Django User object
 
     Returns:
-        float: Total saved amount
+        Decimal: Total saved amount
     """
     goals = get_goals_with_progress(user)
-    return sum(float(g.saved) for g in goals)
+    return sum((g.saved for g in goals), Decimal('0'))
 
 
 def add_contribution(user, goal_pk, amount, contribution_date):
@@ -64,7 +65,7 @@ def add_contribution(user, goal_pk, amount, contribution_date):
     if amount <= 0:
         raise ValueError('Amount must be greater than zero.')
 
-    remaining = float(goal.target) - float(goal.saved)
+    remaining = goal.target - goal.saved
     if amount > remaining:
         raise ValueError(
             f'Amount exceeds remaining target. You only need ₹{remaining:,.0f} more.'
@@ -103,7 +104,7 @@ def predict_completion_date(goal):
     monthly_totals = {}
     for c in contributions:
         key = (c.date.year, c.date.month)
-        monthly_totals[key] = monthly_totals.get(key, 0) + float(c.amount)
+        monthly_totals[key] = monthly_totals.get(key, Decimal('0')) + c.amount
 
     if not monthly_totals:
         return None
@@ -116,6 +117,5 @@ def predict_completion_date(goal):
     if remaining <= 0:
         return date.today()
 
-    months_needed = remaining / avg_monthly
-    months_needed = math.ceil(months_needed)
+    months_needed = math.ceil(remaining / avg_monthly)
     return date.today() + relativedelta(months=months_needed)

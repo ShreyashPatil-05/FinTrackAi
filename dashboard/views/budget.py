@@ -4,6 +4,7 @@ Budget Management Views
 Category budgets, spending tracking, and custom categories.
 """
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -109,10 +110,10 @@ def settings_budget(request: HttpRequest) -> HttpResponse:
                     CategoryBudget.objects.update_or_create(
                         user=request.user, category=cat,
                         month=view_month, year=view_year,
-                        defaults={'limit': float(val)}
+                        defaults={'limit': Decimal(val)}
                     )
-                except ValueError:
-                    pass
+                except InvalidOperation:
+                    messages.warning(request, f'Invalid amount for "{cat}" — skipped.')
             else:
                 CategoryBudget.objects.filter(
                     user=request.user, category=cat,

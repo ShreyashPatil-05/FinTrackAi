@@ -456,17 +456,46 @@ class ProfileTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.first_name, 'Shreyash')
 
-    def test_delete_account(self):
-        self.client.post(reverse('delete_account'))
+    def test_delete_account_wrong_password_rejected(self):
+        """Account must NOT be deleted when wrong password supplied."""
+        self.client.post(reverse('delete_account'), {'confirm_password': 'wrongpassword'})
+        self.assertTrue(User.objects.filter(username='testuser').exists())
+
+    def test_delete_account_correct_password(self):
+        """Account IS deleted when correct password supplied."""
+        self.client.post(reverse('delete_account'), {'confirm_password': 'testpass123'})
         self.assertFalse(User.objects.filter(username='testuser').exists())
+
+    def test_delete_account_get_not_allowed(self):
+        """GET request to delete_account must return 405 (require_POST)."""
+        response = self.client.get(reverse('delete_account'))
+        self.assertEqual(response.status_code, 405)
 
     def test_delete_account_cascades_expenses(self):
         Expense.objects.create(
             user=self.user, title='Test', category='Food',
             amount=100, date='2026-03-01'
         )
-        self.client.post(reverse('delete_account'))
+        self.client.post(reverse('delete_account'), {'confirm_password': 'testpass123'})
         self.assertFalse(Expense.objects.filter(title='Test').exists())
+
+    def test_delete_account_oauth_wrong_username_rejected(self):
+        """OAuth account must NOT be deleted when typed username is wrong."""
+        oauth_user = User.objects.create_user(username='oauthuser', password=None)
+        oauth_user.set_unusable_password()
+        oauth_user.save()
+        self.client.force_login(oauth_user)
+        self.client.post(reverse('delete_account'), {'confirm_username': 'wrongname'})
+        self.assertTrue(User.objects.filter(username='oauthuser').exists())
+
+    def test_delete_account_oauth_correct_username(self):
+        """OAuth account IS deleted when correct username is typed."""
+        oauth_user = User.objects.create_user(username='oauthuser', password=None)
+        oauth_user.set_unusable_password()
+        oauth_user.save()
+        self.client.force_login(oauth_user)
+        self.client.post(reverse('delete_account'), {'confirm_username': 'oauthuser'})
+        self.assertFalse(User.objects.filter(username='oauthuser').exists())
 
 
 # ─────────────────────────────────────────────

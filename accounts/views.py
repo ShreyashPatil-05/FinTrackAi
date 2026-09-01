@@ -23,6 +23,7 @@ except ImportError:
     SENDGRID_AVAILABLE = False
 
 from .forms import MyUserCreationForm, LoginForm, ChangePasswordForm
+from .models import EmailVerificationToken, PasswordResetToken
 from .services.auth_service import (
     check_register_rate_limit,
     increment_register_rate_limit,
@@ -298,14 +299,9 @@ def login_view(request):
 
     Features:
         - Username/password authentication
+        - Remember Me — extends session to 30 days when checked
         - Session creation on success
         - Redirect to dashboard after login
-
-    Args:
-        request: Django HttpRequest object
-
-    Returns:
-        HttpResponse: Login form or redirect to dashboard on success
     """
     form = LoginForm(request.POST or None)
 
@@ -313,14 +309,12 @@ def login_view(request):
         if form.is_valid():
             username = form.cleaned_data.get("username")
             password = form.cleaned_data.get("password")
+            remember_me = request.POST.get("remember_me")
 
             user = authenticate(request, username=username, password=password)
 
             if user is not None:
                 if not user.is_active:
-                    # Don't confirm the password was correct — use the same generic
-                    # error message to avoid leaking valid credential info (OWASP A07).
-                    # The resend hint is shown via show_resend=True without confirming auth.
                     messages.error(request, "Invalid username or password.")
                     return render(request, "accounts/auth.html", {
                         "form": form,
@@ -331,6 +325,12 @@ def login_view(request):
                         "show_resend": True,
                     })
                 login(request, user)
+                if remember_me:
+                    # Keep session for 30 days
+                    request.session.set_expiry(60 * 60 * 24 * 30)
+                else:
+                    # Session expires when browser closes
+                    request.session.set_expiry(0)
                 return redirect("dashboard")
             else:
                 messages.error(request, "Invalid username or password.")
@@ -379,8 +379,13 @@ def change_password_view(request):
     Allow authenticated users to change their own password.
     Handles POST only — form lives in a modal on the profile page.
     On success or failure, redirects back to profile.
+
+    Password is validated against all AUTH_PASSWORD_VALIDATORS configured
+    in settings (length, common passwords, numeric-only, similarity to username).
     """
     from django.contrib.auth import update_session_auth_hash
+    from django.contrib.auth import password_validation
+    from django.core.exceptions import ValidationError
 
     if request.method == "POST":
         current_password = request.POST.get("current_password", "")
@@ -390,19 +395,149 @@ def change_password_view(request):
         if not request.user.check_password(current_password):
             messages.error(request, "Current password is incorrect.")
             return redirect("/profile/?pw_error=1")
-        elif new_password1 != new_password2:
+
+        if new_password1 != new_password2:
             messages.error(request, "New passwords do not match.")
             return redirect("/profile/?pw_error=1")
-        elif len(new_password1) < 8:
-            messages.error(request, "New password must be at least 8 characters.")
+
+        # Run all AUTH_PASSWORD_VALIDATORS (length, common passwords,
+        # numeric-only, similarity to username/email)
+        try:
+            password_validation.validate_password(new_password1, request.user)
+        except ValidationError as e:
+            messages.error(request, " ".join(e.messages))
             return redirect("/profile/?pw_error=1")
-        else:
-            request.user.set_password(new_password1)
-            request.user.save()
-            update_session_auth_hash(request, request.user)
-            messages.success(request, "Password changed successfully.")
+
+        request.user.set_password(new_password1)
+        request.user.save()
+        update_session_auth_hash(request, request.user)
+        messages.success(request, "Password changed successfully.")
 
     return redirect("profile")
+
+
+# ----------------------------
+# FORGOT PASSWORD VIEW
+# ----------------------------
+@never_cache
+@require_http_methods(["GET", "POST"])
+def forgot_password_view(request):
+    """
+    Step 1 of password reset — user enters their email.
+
+    - Looks up user by email
+    - Deletes any existing reset tokens for that user
+    - Creates a new PasswordResetToken
+    - Sends reset link via email (same SendGrid/SMTP pattern)
+    - Always shows the same success message regardless of whether
+      email exists (prevents email enumeration)
+    """
+    if request.method == "POST":
+        email = request.POST.get("email", "").strip().lower()
+
+        # Always show success — never reveal whether email exists
+        try:
+            user = User.objects.get(email__iexact=email, is_active=True)
+            # Delete any existing tokens before creating a new one
+            PasswordResetToken.objects.filter(user=user).delete()
+            token_obj = PasswordResetToken.objects.create(user=user)
+            _send_password_reset_email(request, user, token_obj.token)
+            logger.info(f"Password reset requested for user_id={user.pk}")
+        except User.DoesNotExist:
+            # Log quietly but don't leak info to the user
+            logger.info(f"Password reset requested for unknown email: {email[:3]}***")
+
+        return render(request, "accounts/forgot_password.html", {
+            "email_sent": True,
+        })
+
+    return render(request, "accounts/forgot_password.html")
+
+
+# ----------------------------
+# RESET PASSWORD VIEW
+# ----------------------------
+@never_cache
+@require_http_methods(["GET", "POST"])
+def reset_password_view(request, token):
+    """
+    Step 2 of password reset — user sets a new password.
+
+    - Validates the UUID token
+    - Checks it hasn't expired (1 hour TTL)
+    - Runs full AUTH_PASSWORD_VALIDATORS on the new password
+    - Deletes the token after successful reset
+    """
+    from django.contrib.auth import password_validation
+    from django.core.exceptions import ValidationError as DjangoValidationError
+
+    try:
+        token_obj = PasswordResetToken.objects.get(token=token)
+    except PasswordResetToken.DoesNotExist:
+        return render(request, "accounts/reset_password.html", {"invalid": True})
+
+    if token_obj.is_expired():
+        token_obj.delete()
+        return render(request, "accounts/reset_password.html", {"expired": True})
+
+    if request.method == "POST":
+        password1 = request.POST.get("password1", "")
+        password2 = request.POST.get("password2", "")
+
+        if password1 != password2:
+            return render(request, "accounts/reset_password.html", {
+                "token": token,
+                "error": "Passwords do not match.",
+            })
+
+        try:
+            password_validation.validate_password(password1, token_obj.user)
+        except DjangoValidationError as e:
+            return render(request, "accounts/reset_password.html", {
+                "token": token,
+                "error": " ".join(e.messages),
+            })
+
+        token_obj.user.set_password(password1)
+        token_obj.user.save()
+        token_obj.delete()
+        logger.info(f"Password reset completed for user_id={token_obj.user.pk}")
+        return render(request, "accounts/reset_password.html", {"success": True})
+
+    return render(request, "accounts/reset_password.html", {"token": token})
+
+
+def _send_password_reset_email(request, user, token):
+    """Send password reset link in a background thread (mirrors _send_verification_email)."""
+    reset_url = request.build_absolute_uri(
+        reverse('reset_password', args=[str(token)])
+    )
+    subject = 'Reset your FinTrack password'
+    message = (
+        f"Hi {user.username},\n\n"
+        f"Click the link below to reset your password:\n\n"
+        f"{reset_url}\n\n"
+        f"This link is valid for 1 hour. If you didn't request this, ignore this email.\n\n"
+        f"— FinTrack"
+    )
+
+    def _send():
+        try:
+            sendgrid_api_key = os.environ.get('EMAIL_HOST_PASSWORD', '')
+            if sendgrid_api_key and sendgrid_api_key.startswith('SG.') and SENDGRID_AVAILABLE:
+                from_email = Email(os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@fintrack.app'))
+                to_email   = To(user.email)
+                content    = Content("text/plain", message)
+                mail       = Mail(from_email, to_email, subject, content)
+                sg = SendGridAPIClient(sendgrid_api_key)
+                sg.client.mail.send.post(request_body=mail.get())
+            else:
+                send_mail(subject, message, None, [user.email], fail_silently=False)
+        except Exception as e:
+            logger.error(f"Password reset email failed for {user.username}: {e}", exc_info=True)
+
+    thread = threading.Thread(target=_send, daemon=True)
+    thread.start()
 
 
 # ----------------------------

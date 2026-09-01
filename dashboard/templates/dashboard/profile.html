@@ -184,16 +184,17 @@
                            placeholder="Enter your password" required
                            style="width:100%;font-size:0.9rem;">
                 {% else %}
-                    <!-- OAuth account — ask for checkbox confirmation -->
+                    <!-- OAuth account — require typed username confirmation -->
                     <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 14px;">
-                        <p style="font-size:0.82rem;color:#dc2626;margin:0 0 10px;font-weight:600;">
+                        <p style="font-size:0.82rem;color:#dc2626;margin:0 0 8px;font-weight:600;">
                             <i class="bi bi-google me-1"></i> You signed in with Google
                         </p>
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.85rem;color:#64748b;">
-                            <input type="checkbox" name="confirm_delete" value="yes" required
-                                   style="width:16px;height:16px;accent-color:#dc2626;flex-shrink:0;">
-                            I understand this will permanently delete my account and all data
+                        <label style="font-size:0.78rem;font-weight:600;color:#64748b;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">
+                            Type your username to confirm: <strong style="color:#dc2626;">{{ request.user.username }}</strong>
                         </label>
+                        <input type="text" name="confirm_username" class="prof-input"
+                               placeholder="{{ request.user.username }}" required autocomplete="off"
+                               style="width:100%;font-size:0.9rem;">
                     </div>
                 {% endif %}
             </div>

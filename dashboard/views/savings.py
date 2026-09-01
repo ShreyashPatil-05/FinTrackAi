@@ -4,10 +4,13 @@ Savings Goals Management Views
 Track savings goals and contributions.
 """
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_POST
+from django.core.exceptions import ValidationError
 from django.contrib import messages
 from django.http import HttpRequest, HttpResponse
 
@@ -63,12 +66,16 @@ def savings_goal_add(request: HttpRequest) -> HttpResponse:
             goal = SavingsGoal.objects.create(
                 user=request.user,
                 name=request.POST.get('name', '').strip(),
-                target=float(request.POST.get('target', 0)),
+                target=Decimal(request.POST.get('target', '0')),
                 target_date=request.POST.get('target_date') or None,
                 icon=request.POST.get('icon', 'piggy-bank'),
             )
             messages.success(request, f'Goal "{goal.name}" created.')
-        except Exception:
+        except InvalidOperation:
+            messages.error(request, 'Invalid target amount.')
+        except ValidationError as e:
+            messages.error(request, '; '.join(e.messages))
+        except Exception as e:
             messages.error(request, 'Could not create goal.')
     return redirect('savings_goals')
 
@@ -90,12 +97,12 @@ def savings_goal_edit(request: HttpRequest, pk: int) -> HttpResponse:
     if request.method == 'POST':
         try:
             goal.name = request.POST.get('name', '').strip()
-            goal.target = float(request.POST.get('target', goal.target))
+            goal.target = Decimal(request.POST.get('target', str(goal.target)))
             goal.target_date = request.POST.get('target_date') or None
             goal.icon = request.POST.get('icon', goal.icon)
             goal.save()
             messages.success(request, f'Goal "{goal.name}" updated.')
-        except Exception:
+        except (InvalidOperation, Exception):
             messages.error(request, 'Could not update goal.')
     return redirect('savings_goals')
 
@@ -139,7 +146,7 @@ def savings_goal_add_funds(request: HttpRequest, pk: int) -> HttpResponse:
     """
     if request.method == 'POST':
         try:
-            amount = float(request.POST.get('amount', 0))
+            amount = Decimal(request.POST.get('amount', '0'))
             fund_date = request.POST.get('date', '').strip()
             add_contribution(request.user, pk, amount, fund_date or str(date.today()))
             messages.success(request, f'₹{amount:,.0f} added to goal.')
@@ -152,17 +159,11 @@ def savings_goal_add_funds(request: HttpRequest, pk: int) -> HttpResponse:
     return redirect('savings_goal_detail', pk=pk)
 
 
+@require_POST
 @login_required(login_url='login')
 def savings_goal_delete(request: HttpRequest, pk: int) -> HttpResponse:
     """
-    Delete a savings goal.
-
-    Args:
-        request: Django HttpRequest object
-        pk: Primary key of savings goal
-
-    Returns:
-        HttpResponse: Redirect to savings goals page
+    Delete a savings goal. Requires POST — GET returns 405.
     """
     goal = get_object_or_404(SavingsGoal, pk=pk, user=request.user)
     name = goal.name

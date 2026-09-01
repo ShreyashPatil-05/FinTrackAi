@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib.auth import logout as auth_logout
 from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.http import HttpRequest, HttpResponse
 
@@ -101,32 +102,33 @@ def profile(request: HttpRequest) -> HttpResponse:
     })
 
 
+@require_POST
 @login_required(login_url='login')
 def delete_account(request: HttpRequest) -> HttpResponse:
     """
     Delete user account with confirmation.
 
-    - Regular users: must confirm with their password
-    - OAuth users (no usable password): just confirm intent via checkbox
+    Requires a POST request (GET → 405).
+    - Regular users: must supply their correct password.
+    - OAuth users (no usable password): must type their exact username
+      as a confirmation phrase — harder to CSRF than a hidden checkbox.
     """
-    if request.method == 'POST':
-        user = request.user
+    user = request.user
 
-        if user.has_usable_password():
-            # Regular account — verify password
-            password = request.POST.get('confirm_password', '')
-            if not user.check_password(password):
-                messages.error(request, 'Incorrect password. Account not deleted.')
-                return redirect('profile')
-        else:
-            # OAuth account — verify confirmation checkbox
-            confirmed = request.POST.get('confirm_delete', '')
-            if confirmed != 'yes':
-                messages.error(request, 'Please confirm account deletion.')
-                return redirect('profile')
+    if user.has_usable_password():
+        # Regular account — verify password
+        password = request.POST.get('confirm_password', '')
+        if not user.check_password(password):
+            messages.error(request, 'Incorrect password. Account not deleted.')
+            return redirect('profile')
+    else:
+        # OAuth account — require typed username confirmation
+        typed = request.POST.get('confirm_username', '').strip()
+        if typed != user.username:
+            messages.error(request, 'Username did not match. Account not deleted.')
+            return redirect('profile')
 
-        auth_logout(request)
-        user.delete()
-        messages.success(request, 'Your account has been deleted.')
-        return redirect('landing')
-    return redirect('profile')
+    auth_logout(request)
+    user.delete()
+    messages.success(request, 'Your account has been deleted.')
+    return redirect('landing')

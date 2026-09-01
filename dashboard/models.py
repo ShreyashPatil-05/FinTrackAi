@@ -274,45 +274,46 @@ class SavingsGoal(models.Model):
         return f"<SavingsGoal: {self.name} - {self.progress_pct}% complete>"
 
     @property
-    def saved(self):
+    def saved(self) -> Decimal:
         """
         Calculate total amount saved towards this goal.
-        
+
         Uses prefetched contributions if available to avoid N+1 queries.
-        
+
         Returns:
-            float: Total saved amount
+            Decimal: Total saved amount
         """
-        # Use prefetched contributions if available (avoids N+1 queries)
         if hasattr(self, '_prefetched_objects_cache') and 'contributions' in self._prefetched_objects_cache:
-            return float(sum(c.amount for c in self._prefetched_objects_cache['contributions']))
-        
+            return sum(
+                (c.amount for c in self._prefetched_objects_cache['contributions']),
+                Decimal('0'),
+            )
         total = self.contributions.aggregate(Sum('amount'))['amount__sum']
-        return float(total or 0)
+        return total or Decimal('0')
 
     @property
-    def progress_pct(self):
+    def progress_pct(self) -> float:
         """
         Calculate progress percentage towards target.
-        
+
         Returns:
             float: Progress percentage (0-100), capped at 100
         """
         if not self.target or self.target <= 0:
             return 0
-        return min(round(self.saved / float(self.target) * 100, 1), 100)
+        return min(round(float(self.saved / self.target * 100), 1), 100)
 
     @property
-    def remaining(self):
+    def remaining(self) -> Decimal:
         """
         Calculate remaining amount needed to reach target.
-        
+
         Returns:
-            float: Remaining amount (0 if target reached)
+            Decimal: Remaining amount (0 if target reached)
         """
         if not self.target:
-            return 0
-        return max(float(self.target) - self.saved, 0)
+            return Decimal('0')
+        return max(self.target - self.saved, Decimal('0'))
 
 
 class SavingsContribution(models.Model):
@@ -423,37 +424,52 @@ class Subscription(models.Model):
     def advance_billing_date(self):
         """
         Advance next_billing past today, creating an Expense for each elapsed cycle.
-        
+
         For overdue subscriptions, this creates expense entries for all missed
         billing dates and updates next_billing to the next future date.
-        
+
         Uses get_or_create to avoid duplicate expenses if called multiple times.
-        
+        Wrapped in transaction.atomic() + select_for_update() to prevent race
+        conditions when multiple requests process the same subscription concurrently.
+
         Raises:
             ValueError: If subscription cycle is invalid
         """
+        from django.db import transaction
         from expenses.models import Expense
-        
+
         today = date.today()
+        # Quick pre-check without a lock to avoid unnecessary DB overhead
         if self.next_billing > today:
             return
-        d = self.next_billing
-        while d <= today:
-            Expense.objects.get_or_create(
-                user=self.user,
-                title=f"{self.name} (Subscription)",
-                date=d,
-                source='subscription',
-                defaults={'category': 'Subscription', 'amount': self.amount},
-            )
-            if self.cycle == 'weekly':
-                d += relativedelta(weeks=1)
-            elif self.cycle == 'yearly':
-                d += relativedelta(years=1)
-            else:
-                d += relativedelta(months=1)
-        self.next_billing = d
-        self.save(update_fields=['next_billing'])
+
+        with transaction.atomic():
+            # Re-read with a row lock so concurrent requests wait rather than
+            # both advancing the billing date simultaneously
+            sub = Subscription.objects.select_for_update().get(pk=self.pk)
+            if sub.next_billing > today:
+                return  # Another request already advanced it — nothing to do
+
+            d = sub.next_billing
+            while d <= today:
+                Expense.objects.get_or_create(
+                    user=sub.user,
+                    title=f"{sub.name} (Subscription)",
+                    date=d,
+                    source='subscription',
+                    defaults={'category': 'Subscription', 'amount': sub.amount},
+                )
+                if sub.cycle == 'weekly':
+                    d += relativedelta(weeks=1)
+                elif sub.cycle == 'yearly':
+                    d += relativedelta(years=1)
+                else:
+                    d += relativedelta(months=1)
+
+            sub.next_billing = d
+            sub.save(update_fields=['next_billing'])
+            # Keep self in sync so the caller sees the updated value
+            self.next_billing = d
 
 
 class WebhookToken(models.Model):

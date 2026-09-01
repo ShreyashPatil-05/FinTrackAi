@@ -5,6 +5,7 @@ Receives simulated bank transactions and creates Expense entries.
 """
 import json
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -19,20 +20,22 @@ from dashboard.models import WebhookToken
 @require_POST
 def bank_webhook(request):
     """Handle incoming bank transaction webhooks."""
-    # ── Rate limit: 60 requests per minute per IP ──
-    ip = request.META.get('REMOTE_ADDR', '')
-    rate_key = f'webhook_rate_{ip}'
-    hits = cache.get(rate_key, 0)
-    if hits >= 60:
-        return JsonResponse({'error': 'Rate limit exceeded'}, status=429)
-    cache.set(rate_key, hits + 1, timeout=60)
-
-    # ── Authenticate token ──
+    # ── Authenticate token first — required before rate limiting ──
+    # Rate limiting by IP is ineffective behind Railway's reverse proxy
+    # (all requests share one REMOTE_ADDR). Rate limit by authenticated
+    # user instead so each token holder gets their own 60 req/min bucket.
     token = request.headers.get('X-Bank-Token', '')
     token_obj = WebhookToken.verify(token)
     if token_obj is None:
         return JsonResponse({'error': 'Unauthorized'}, status=401)
     user = token_obj.user
+
+    # ── Rate limit: 60 requests per minute per user ──
+    rate_key = f'webhook_rate_{user.pk}'
+    hits = cache.get(rate_key, 0)
+    if hits >= 60:
+        return JsonResponse({'error': 'Rate limit exceeded'}, status=429)
+    cache.set(rate_key, hits + 1, timeout=60)
 
     # ── Parse payload ──
     try:
@@ -52,10 +55,10 @@ def bank_webhook(request):
 
     # ── Validate amount ──
     try:
-        amount = float(data['amount'])
+        amount = Decimal(str(data['amount']))
         if amount <= 0:
-            raise ValueError
-    except (ValueError, TypeError):
+            raise InvalidOperation
+    except (InvalidOperation, ValueError, TypeError):
         return JsonResponse({'error': 'Invalid amount'}, status=400)
 
     # ── Validate date ──

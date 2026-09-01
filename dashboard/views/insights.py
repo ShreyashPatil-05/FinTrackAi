@@ -17,6 +17,7 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum
 from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.core.cache import cache
 
 from expenses.forms import get_category_choices
 from ..models import Subscription, SavingsGoal, CategoryBudget
@@ -364,11 +365,36 @@ def insights_view(request: HttpRequest) -> HttpResponse:
         data     = _gather_user_data(request.user)
         insights = []
         ai_used  = False
+
         if api_key_set:
-            raw      = _call_gemini(_build_prompt(data))
-            insights = _parse_insights(raw)
-            if insights:
-                ai_used = True
+            cache_key     = f'gemini_insights_{request.user.pk}'
+            rate_key      = f'gemini_rate_{request.user.pk}'
+            CACHE_TTL     = 900   # 15 minutes — fresh enough for financial data
+            RATE_LIMIT    = 10    # max Gemini calls per hour per user
+            RATE_WINDOW   = 3600  # 1 hour
+
+            cached = cache.get(cache_key)
+            if cached is not None:
+                # Serve from cache — no API call needed
+                insights = cached
+                ai_used  = True
+            else:
+                # Check rate limit before making a live API call
+                calls_this_hour = cache.get(rate_key, 0)
+                if calls_this_hour >= RATE_LIMIT:
+                    logger.warning(
+                        f"Gemini rate limit reached for user {request.user.pk} "
+                        f"({calls_this_hour} calls in last hour)"
+                    )
+                    # Fall through to rule-based — don't block the user entirely
+                else:
+                    raw      = _call_gemini(_build_prompt(data))
+                    insights = _parse_insights(raw)
+                    if insights:
+                        ai_used = True
+                        cache.set(cache_key, insights, timeout=CACHE_TTL)
+                        cache.set(rate_key, calls_this_hour + 1, timeout=RATE_WINDOW)
+
         if not insights:
             insights = _rule_based_insights(data)
         return JsonResponse({'insights': insights, 'ai_used': ai_used, 'locked': False})

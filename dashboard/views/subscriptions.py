@@ -5,10 +5,12 @@ Track recurring subscriptions and billing dates.
 """
 import logging
 from datetime import date, timedelta
+from decimal import Decimal, InvalidOperation
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.http import HttpRequest, HttpResponse
 
@@ -100,14 +102,14 @@ def subscription_add(request: HttpRequest) -> HttpResponse:
             sub = Subscription.objects.create(
                 user=request.user,
                 name=request.POST.get('name', '').strip(),
-                amount=float(request.POST.get('amount', 0)),
+                amount=Decimal(request.POST.get('amount', '0')),
                 cycle=request.POST.get('cycle', 'monthly'),
                 category=request.POST.get('category', 'Other'),
                 next_billing=billing_date,
                 status=request.POST.get('status', 'active'),
             )
             messages.success(request, f'"{sub.name}" subscription added.')
-        except Exception:
+        except (InvalidOperation, Exception):
             messages.error(request, 'Could not add subscription.')
             return redirect('subscriptions')
         try:
@@ -135,29 +137,23 @@ def subscription_edit(request: HttpRequest, pk: int) -> HttpResponse:
     if request.method == 'POST':
         try:
             sub.name = request.POST.get('name', '').strip()
-            sub.amount = float(request.POST.get('amount', sub.amount))
+            sub.amount = Decimal(request.POST.get('amount', str(sub.amount)))
             sub.cycle = request.POST.get('cycle', sub.cycle)
             sub.category = request.POST.get('category', sub.category)
             sub.next_billing = request.POST.get('next_billing', sub.next_billing)
             sub.status = request.POST.get('status', sub.status)
             sub.save()
             messages.success(request, f'"{sub.name}" updated.')
-        except Exception:
+        except (InvalidOperation, Exception):
             messages.error(request, 'Could not update subscription.')
     return redirect('subscriptions')
 
 
+@require_POST
 @login_required(login_url='login')
 def subscription_delete(request: HttpRequest, pk: int) -> HttpResponse:
     """
-    Delete a subscription.
-
-    Args:
-        request: Django HttpRequest object
-        pk: Primary key of subscription
-
-    Returns:
-        HttpResponse: Redirect to subscriptions page
+    Delete a subscription. Requires POST — GET returns 405.
     """
     sub = get_object_or_404(Subscription, pk=pk, user=request.user)
     name = sub.name

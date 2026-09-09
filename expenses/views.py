@@ -4,20 +4,22 @@ Expenses Views
 Handles CRUD operations for expense tracking with filtering,
 pagination, and bulk operations.
 """
+import json
 from typing import Optional
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
 from django.contrib import messages
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.core.paginator import Paginator
+from django.template.loader import render_to_string
 from datetime import date
 from calendar import month_name
 
 from .models import Expense, DEFAULT_CATEGORIES
 from .forms import ExpenseForm, get_category_choices
-from dashboard.utils import get_month_navigation, get_available_years, get_sum_amount
+from dashboard.utils import get_month_navigation, get_available_years, get_sum_amount, get_date_range
 from dashboard.services.plan_service import check_limit
 
 
@@ -38,86 +40,89 @@ def _all_categories(user):
 def expense_list(request: HttpRequest) -> HttpResponse:
     """
     Display paginated list of expenses with filtering and search.
-    
-    Features:
-        - Month/year navigation
-        - Custom date range filtering
-        - Category filtering (multi-select)
-        - Text search on expense title
-        - User-selectable page size (10/20/50)
-        - Total amount and count display
-        
-    Args:
-        request: Django HttpRequest object
-        
-    Returns:
-        HttpResponse: Rendered expense list template
+    Uses the same get_date_range() pattern as the dashboard —
+    month/year nav and custom date range are mutually exclusive,
+    resolved in one place in the view.
     """
-    today = date.today()
-
-    # Month/year nav using utility
+    # ── Month / year nav (same util as dashboard) ──────────────────────────
     nav = get_month_navigation(request)
     view_month = nav['view_month']
-    view_year = nav['view_year']
+    view_year  = nav['view_year']
 
-    # Filters
-    search              = request.GET.get('search', '')
-    selected_categories = request.GET.getlist('category')
-    start_date          = request.GET.get('start_date', '')
-    end_date            = request.GET.get('end_date', '')
-    is_custom = bool(start_date and end_date)
+    # ── Date range (resolves month vs custom range conflict) ───────────────
+    date_range  = get_date_range(request, view_month, view_year)
+    start_dt    = date_range['start_dt']
+    end_dt      = date_range['end_dt']
+    is_custom   = date_range['is_custom']
+    filter_label = date_range['filter_label']
+    start_str   = date_range['start_str']
+    end_str     = date_range['end_str']
 
-    expenses = Expense.objects.filter(user=request.user).order_by('-date', '-id')
+    # ── Filters ────────────────────────────────────────────────────────────
+    search      = request.GET.get('search', '').strip()
+    filter_cat  = request.GET.get('filter_cat', '').strip()
 
-    if is_custom:
-        expenses = expenses.filter(date__gte=start_date, date__lte=end_date)
-    else:
-        expenses = expenses.filter(date__month=view_month, date__year=view_year)
+    expenses = Expense.objects.filter(
+        user=request.user,
+        date__gte=start_dt,
+        date__lte=end_dt,
+    ).order_by('-date', '-id')
 
     if search:
         expenses = expenses.filter(title__icontains=search)
-    if selected_categories:
-        expenses = expenses.filter(category__in=selected_categories)
+    if filter_cat:
+        expenses = expenses.filter(category=filter_cat)
 
     total = get_sum_amount(expenses)
     count = expenses.count()
 
-    # Pagination — user-selectable page size
+    # ── Pagination ─────────────────────────────────────────────────────────
     try:
         per_page = int(request.GET.get('per_page', 10))
         if per_page not in (10, 20, 50):
             per_page = 10
     except (ValueError, TypeError):
         per_page = 10
-    paginator = Paginator(expenses, per_page)
-    page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
 
-    # Available years using utility
-    all_years = get_available_years(request.user)
+    paginator   = Paginator(expenses, per_page)
+    page_obj    = paginator.get_page(request.GET.get('page', 1))
+    all_years   = get_available_years(request.user)
+    all_cats    = [c for c, _ in get_category_choices(request.user)]
 
-    return render(request, 'expenses/expense_list.html', {
-        'expenses': page_obj,
-        'page_obj': page_obj,
-        'category_list': _all_categories(request.user),
-        'selected_categories': selected_categories,
-        'total': total,
-        'count': count,
-        'per_page': per_page,
-        'view_month': view_month,
-        'view_year': view_year,
+    context = {
+        'expenses':      page_obj,
+        'page_obj':      page_obj,
+        'category_list': all_cats,
+        'filter_cat':    filter_cat,
+        'search':        search,
+        'total':         total,
+        'count':         count,
+        'per_page':      per_page,
+        'view_month':    view_month,
+        'view_year':     view_year,
         'view_month_name': nav['view_month_name'],
-        'prev_m': nav['prev_m'],
-        'prev_y': nav['prev_y'],
-        'next_m': nav['next_m'],
-        'next_y': nav['next_y'],
-        'all_years': all_years,
-        'month_names': list(month_name)[1:],
-        'is_custom': is_custom,
-        'search': search,
-        'start_date': start_date,
-        'end_date': end_date,
-    })
+        'filter_label':  filter_label,
+        'prev_m':        nav['prev_m'],
+        'prev_y':        nav['prev_y'],
+        'next_m':        nav['next_m'],
+        'next_y':        nav['next_y'],
+        'all_years':     all_years,
+        'month_names':   list(month_name)[1:],
+        'is_custom':     is_custom,
+        'start_date':    start_str,
+        'end_date':      end_str,
+    }
+
+    # ── AJAX — return fragment only ─────────────────────────────────────────
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        html = render_to_string(
+            'expenses/partials/expense_list_partial.html',
+            context,
+            request=request,
+        )
+        return JsonResponse({'html': html})
+
+    return render(request, 'expenses/expense_list.html', context)
 
 
 @login_required(login_url='login')

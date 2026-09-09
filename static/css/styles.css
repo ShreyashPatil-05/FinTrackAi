@@ -2117,7 +2117,7 @@ select.expense-input {
 
 /* Summary strip */
 .el-summary-strip {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 16px;
     background: #ffffff;
@@ -2125,6 +2125,7 @@ select.expense-input {
     border-radius: 10px;
     padding: 10px 20px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    width: 100%;
 }
 
 .el-summary-item {
@@ -2543,6 +2544,67 @@ select.expense-input {
 [data-theme="dark"] .el-perpage-pills { background: var(--bg2); }
 [data-theme="dark"] .el-perpage-pill:hover { background: var(--card); }
 [data-theme="dark"] .el-perpage-count { border-color: var(--border); }
+
+/* ==================================
+   Expense List — Filter Bar Enhancements
+   (overrides for the expense list only — does not affect dashboard)
+================================== */
+
+/* Tighten the topbar when used inside expense list */
+.el-filter-topbar {
+    padding: 8px 14px;
+    gap: 10px;
+}
+
+/* Search group — visible border to distinguish it from date pickers */
+.el-search-group {
+    border-color: #c7d2e0;
+    background: #fff;
+    gap: 6px;
+    min-width: 160px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.el-search-group:focus-within {
+    border-color: #4f8ef7;
+    box-shadow: 0 0 0 3px rgba(79,142,247,0.10);
+    background: #fff;
+}
+.el-search-group .db-fc-input {
+    min-width: 110px;
+}
+
+/* Make selects slightly more compact in the expense filter bar */
+.el-filter-topbar .db-fc-select {
+    padding: 5px 6px;
+    font-size: 0.78rem;
+}
+.el-filter-topbar .db-filter-group {
+    padding: 4px 9px;
+}
+.el-filter-topbar .db-filter-label {
+    font-size: 0.7rem;
+}
+.el-filter-topbar .db-fc-input {
+    font-size: 0.78rem;
+    width: 110px;
+}
+.el-filter-topbar .db-fc-btn-apply {
+    padding: 5px 14px;
+    font-size: 0.78rem;
+}
+.el-filter-topbar .db-fc-btn-reset {
+    padding: 4px 11px;
+    font-size: 0.78rem;
+}
+
+[data-theme="dark"] .el-search-group {
+    background: var(--bg3);
+    border-color: var(--border);
+}
+[data-theme="dark"] .el-search-group:focus-within {
+    border-color: #4f8ef7;
+    background: var(--bg3);
+}
 
 /* ==================================
    Expense List — View Toggle & Filter Button

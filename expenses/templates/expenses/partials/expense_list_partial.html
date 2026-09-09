@@ -1,0 +1,261 @@
+{% load fintrack_filters %}
+
+<!-- ── Filter bar — inside swappable region so month nav label updates on AJAX ── -->
+<div class="db-topbar el-filter-topbar mb-4">
+
+    <!-- Left: month navigator — arrows carry current search/filter params -->
+    <div class="db-month-nav">
+        <a href="?month={{ prev_m }}&year={{ prev_y }}&per_page={{ per_page }}&search={{ search }}&filter_cat={{ filter_cat }}"
+           class="db-nav-arrow el-ajax-page" title="Previous month">
+            <i class="bi bi-chevron-left"></i>
+        </a>
+        <span class="db-month-label">{{ filter_label }}</span>
+        <a href="?month={{ next_m }}&year={{ next_y }}&per_page={{ per_page }}&search={{ search }}&filter_cat={{ filter_cat }}"
+           class="db-nav-arrow el-ajax-page" title="Next month">
+            <i class="bi bi-chevron-right"></i>
+        </a>
+    </div>
+
+    <!-- Right: filter form -->
+    <form method="get" class="db-filter-bar" id="filterForm">
+        <div class="db-filter-group">
+            <span class="db-filter-label">From</span>
+            <input type="date" name="start_date" class="db-fc-input" value="{{ start_date }}">
+        </div>
+        <div class="db-filter-group">
+            <span class="db-filter-label">To</span>
+            <input type="date" name="end_date" class="db-fc-input" value="{{ end_date }}">
+        </div>
+
+        <!-- Year — blank default, only selected when user picks one -->
+        <select name="year" class="db-fc-select">
+            <option value="">Year</option>
+            {% for y in all_years %}
+            <option value="{{ y }}" {% if not is_custom and y == view_year and not start_date %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+
+        <!-- Month — blank default, only selected when user picks one -->
+        <select name="month" class="db-fc-select">
+            <option value="">Month</option>
+            {% for mname in month_names %}
+            <option value="{{ forloop.counter }}" {% if not is_custom and forloop.counter == view_month and not start_date %}selected{% endif %}>{{ mname }}</option>
+            {% endfor %}
+        </select>
+
+        <select name="filter_cat" class="db-fc-select">
+            <option value="">All categories</option>
+            {% for cat in category_list %}
+            <option value="{{ cat }}" {% if cat == filter_cat %}selected{% endif %}>{{ cat }}</option>
+            {% endfor %}
+        </select>
+
+        <!-- Search — with explicit border unlike the date inputs -->
+        <div class="db-filter-group el-search-group">
+            <i class="bi bi-search" style="color:#94a3b8;font-size:0.8rem;"></i>
+            <input type="text" name="search" class="db-fc-input"
+                   placeholder="Search..." value="{{ search }}" style="min-width:110px;">
+        </div>
+
+        <button type="submit" class="db-fc-btn-apply">
+            <i class="bi bi-funnel-fill me-1"></i>Apply
+        </button>
+        <a href="{% url 'expense_list' %}" class="db-fc-btn-reset">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+        </a>
+    </form>
+</div>
+
+<!-- Summary Strip -->
+<div class="el-summary-strip mb-4">
+    <div class="el-summary-item">
+        <span class="el-summary-label">{{ filter_label }}</span>
+        <span class="el-summary-value">{{ count }} transaction{{ count|pluralize }}</span>
+    </div>
+    <div class="el-summary-divider"></div>
+    <div class="el-summary-item">
+        <span class="el-summary-label">Total Spent</span>
+        <span class="el-summary-value red">{{ total|inr }}</span>
+    </div>
+    {% if search %}
+    <div class="el-summary-divider"></div>
+    <div class="el-summary-item">
+        <span class="el-summary-label">Search</span>
+        <span class="el-summary-value" style="font-size:0.82rem;">"{{ search }}"</span>
+    </div>
+    {% endif %}
+    {% if filter_cat %}
+    <div class="el-summary-divider"></div>
+    <div class="el-summary-item">
+        <span class="el-summary-label">Category</span>
+        <span class="el-summary-value" style="font-size:0.82rem;">{{ filter_cat }}</span>
+    </div>
+    {% endif %}
+    <!-- Delete selected — lives here, hidden until rows are checked -->
+    <button type="button" class="el-btn-delete-sel ms-auto" id="deleteSelectedBtn"
+            onclick="submitBulkDelete()" disabled style="margin-left:auto;">
+        <i class="bi bi-trash3 me-1"></i>
+        Delete (<span id="selCount">0</span>)
+    </button>
+</div>
+
+<!-- Table View -->
+<div id="tableView">
+    <div class="el-table-card">
+        {% if expenses %}
+        <div class="table-responsive">
+            <table class="el-table">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">
+                            <input type="checkbox" class="el-checkbox" id="selectAllRows" title="Select all">
+                        </th>
+                        <th>Date</th>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th class="text-end">Amount</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expenses %}
+                    <tr class="el-row" id="row-{{ expense.id }}">
+                        <td>
+                            <input type="checkbox" class="el-checkbox row-checkbox"
+                                   value="{{ expense.id }}" onchange="updateSelection()">
+                        </td>
+                        <td><span class="el-date">{{ expense.date }}</span></td>
+                        <td>
+                            <div class="el-title-cell">
+                                <span class="el-cat-dot el-cat-{{ expense.category|lower }}"></span>
+                                <span class="el-title">{{ expense.title }}</span>
+                                {% if expense.source == 'bank' %}<span class="el-bank-badge">🏦 Auto</span>{% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="el-badge el-badge-{{ expense.category|lower }}">{{ expense.category }}</span>
+                        </td>
+                        <td class="text-end">
+                            <span class="el-amount">{{ expense.amount|inr }}</span>
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'edit_expense' expense.id %}" class="el-action-btn edit" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'delete_expense' expense.id %}" class="el-action-btn delete" title="Delete">
+                                <i class="bi bi-trash3"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="el-empty">
+            <i class="bi bi-receipt el-empty-icon"></i>
+            <p class="el-empty-title">No expenses for {{ filter_label }}</p>
+            {% if search or filter_cat %}
+            <p class="el-empty-sub">Try clearing the search or category filter.</p>
+            {% else %}
+            <p class="el-empty-sub">Add your first expense for this period.</p>
+            {% endif %}
+            <a href="{% url 'add_expense' %}" class="el-btn-add mt-3">
+                <i class="bi bi-plus-lg me-1"></i> Add Expense
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Card View -->
+<div id="cardView" style="display:none;">
+    {% if expenses %}
+    <div class="el-card-select-bar mb-3">
+        <label class="el-card-select-all-label">
+            <input type="checkbox" class="el-checkbox" id="selectAllCards" onchange="syncSelectAllCards()">
+            <span>Select all</span>
+        </label>
+    </div>
+    <div class="el-card-grid">
+        {% for expense in expenses %}
+        <div class="el-expense-card" id="card-{{ expense.id }}">
+            <input type="checkbox" class="el-checkbox card-checkbox el-card-cb"
+                   value="{{ expense.id }}" onchange="updateSelection()">
+            <div class="el-expense-card-top">
+                <span class="el-badge el-badge-{{ expense.category|lower }}">{{ expense.category }}</span>
+                <span class="el-amount">{{ expense.amount|inr }}</span>
+            </div>
+            <div class="el-expense-card-title">
+                {{ expense.title }}
+                {% if expense.source == 'bank' %}<span class="el-bank-badge">🏦 Auto</span>{% endif %}
+            </div>
+            <div class="el-expense-card-date">
+                <i class="bi bi-calendar3 me-1"></i>{{ expense.date }}
+            </div>
+            <div class="el-expense-card-actions">
+                <a href="{% url 'edit_expense' expense.id %}" class="el-action-btn edit" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                <a href="{% url 'delete_expense' expense.id %}" class="el-action-btn delete" title="Delete">
+                    <i class="bi bi-trash3"></i>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="el-table-card">
+        <div class="el-empty">
+            <i class="bi bi-receipt el-empty-icon"></i>
+            <p class="el-empty-title">No expenses for {{ filter_label }}</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Pagination -->
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="el-pagination">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}&per_page={{ per_page }}&month={{ view_month }}&year={{ view_year }}&start_date={{ start_date }}&end_date={{ end_date }}&filter_cat={{ filter_cat }}&search={{ search }}"
+       class="el-page-btn el-ajax-page">
+        <i class="bi bi-chevron-left"></i>
+    </a>
+    {% else %}
+    <span class="el-page-btn disabled"><i class="bi bi-chevron-left"></i></span>
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+        <span class="el-page-btn active">{{ num }}</span>
+        {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+        <a href="?page={{ num }}&per_page={{ per_page }}&month={{ view_month }}&year={{ view_year }}&start_date={{ start_date }}&end_date={{ end_date }}&filter_cat={{ filter_cat }}&search={{ search }}"
+           class="el-page-btn el-ajax-page">{{ num }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}&per_page={{ per_page }}&month={{ view_month }}&year={{ view_year }}&start_date={{ start_date }}&end_date={{ end_date }}&filter_cat={{ filter_cat }}&search={{ search }}"
+       class="el-page-btn el-ajax-page">
+        <i class="bi bi-chevron-right"></i>
+    </a>
+    {% else %}
+    <span class="el-page-btn disabled"><i class="bi bi-chevron-right"></i></span>
+    {% endif %}
+
+    <span class="el-page-info">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+</div>
+{% endif %}
+
+<!-- Per-page selector -->
+<div class="el-perpage-wrap">
+    <span class="el-perpage-label"><i class="bi bi-list-ol me-1"></i>Rows per page</span>
+    <div class="el-perpage-pills">
+        {% for n in "10,20,50"|split:"," %}
+        <a href="?page=1&per_page={{ n }}&month={{ view_month }}&year={{ view_year }}&start_date={{ start_date }}&end_date={{ end_date }}&filter_cat={{ filter_cat }}&search={{ search }}"
+           class="el-perpage-pill el-ajax-page {% if per_page|stringformat:'s' == n %}active{% endif %}">{{ n }}</a>
+        {% endfor %}
+    </div>
+    <span class="el-perpage-count">{{ count }} total</span>
+</div>

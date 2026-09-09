@@ -45,7 +45,7 @@
             {% endfor %}
         </select>
         <select name="filter_cat" class="db-fc-select">
-            <option value="">Select...</option>
+            <option value="">Category..</option>
             {% for cat in all_cats %}
             <option value="{{ cat }}" {% if cat == filter_cat %}selected{% endif %}>{{ cat }}</option>
             {% endfor %}

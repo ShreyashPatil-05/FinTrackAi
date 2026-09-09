@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% load static %}
 {% load fintrack_filters %}
 
 {% block content %}
 
-<!-- Page Header -->
+<!-- Page Header — static, never swapped -->
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <div>
         <h4 class="fw-bold mb-0">Expenses</h4>
@@ -18,393 +19,30 @@
                 <i class="bi bi-grid-3x3-gap"></i>
             </button>
         </div>
-        <button class="el-icon-btn" id="filterToggleBtn" onclick="toggleFilters()" title="Toggle filters">
-            <i class="bi bi-funnel"></i>
-            {% if search or selected_categories or start_date or end_date %}
-                <span class="el-filter-dot"></span>
-            {% endif %}
-        </button>
         <a href="{% url 'add_expense' %}" class="el-btn-add">
             <i class="bi bi-plus-lg me-1"></i> Add Expense
         </a>
     </div>
 </div>
 
-<!-- Month Navigator -->
-{% if not is_custom %}
-<div class="el-month-nav mb-4">
-    <a href="?month={{ prev_m }}&year={{ prev_y }}&per_page={{ per_page }}&search={{ search }}{% for c in selected_categories %}&category={{ c }}{% endfor %}" class="el-month-arrow">
-        <i class="bi bi-chevron-left"></i>
-    </a>
-    <div class="el-month-center">
-        <select class="el-month-select" id="monthSelect" onchange="goToMonth()">
-            {% for mn in month_names %}
-            <option value="{{ forloop.counter }}" {% if forloop.counter == view_month %}selected{% endif %}>{{ mn }}</option>
-            {% endfor %}
-        </select>
-        <select class="el-year-select" id="yearSelect" onchange="goToMonth()">
-            {% for y in all_years %}
-            <option value="{{ y }}" {% if y == view_year %}selected{% endif %}>{{ y }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <a href="?month={{ next_m }}&year={{ next_y }}&per_page={{ per_page }}&search={{ search }}{% for c in selected_categories %}&category={{ c }}{% endfor %}" class="el-month-arrow">
-        <i class="bi bi-chevron-right"></i>
-    </a>
-</div>
-{% endif %}
-
-<!-- Summary Strip -->
-<div class="el-summary-strip mb-4">
-    <div class="el-summary-item">
-        <span class="el-summary-label">
-            {% if is_custom %}Custom Range{% else %}{{ view_month_name }} {{ view_year }}{% endif %}
-        </span>
-        <span class="el-summary-value">{{ count }} transaction{{ count|pluralize }}</span>
-    </div>
-    <div class="el-summary-divider"></div>
-    <div class="el-summary-item">
-        <span class="el-summary-label">Total Spent</span>
-        <span class="el-summary-value red">{{ total|inr }}</span>
-    </div>
+<!-- ── AJAX-swappable region — filter bar + list both inside ── -->
+<div id="expenseListRegion">
+    {% include "expenses/partials/expense_list_partial.html" %}
 </div>
 
-<!-- Filters -->
-<div class="el-filter-card mb-4" id="filterStrip">
-    <form method="get" class="el-filter-form">
-        {% if not is_custom %}
-        <input type="hidden" name="month" value="{{ view_month }}">
-        <input type="hidden" name="year" value="{{ view_year }}">
-        {% endif %}
-
-        <div class="el-filter-field">
-            <div class="el-filter-input-wrap">
-                <i class="bi bi-search el-filter-icon"></i>
-                <input type="text" name="search" class="el-filter-input"
-                       placeholder="Search title..." value="{{ search }}">
-            </div>
-        </div>
-
-        <div class="el-filter-field">
-            <div class="dropdown w-100">
-                <button class="el-filter-input el-filter-dropdown-btn"
-                        type="button" data-bs-toggle="dropdown">
-                    <i class="bi bi-tag me-1" style="color:#94a3b8;"></i>
-                    <span id="categoryDropdownText">
-                        {% if selected_categories %}{{ selected_categories|length }} selected{% else %}Category{% endif %}
-                    </span>
-                    <i class="bi bi-chevron-down ms-auto" style="font-size:0.7rem; color:#94a3b8;"></i>
-                </button>
-                <div class="dropdown-menu el-cat-menu p-3" onclick="event.stopPropagation();">
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" id="selectAllCategories">
-                        <label class="form-check-label fw-semibold small" for="selectAllCategories">Select All</label>
-                    </div>
-                    <hr class="my-2">
-                    {% for cat in category_list %}
-                    <div class="form-check">
-                        <input class="form-check-input category-checkbox" type="checkbox"
-                               name="category" value="{{ cat }}" id="cat_{{ cat }}"
-                               {% if cat in selected_categories %}checked{% endif %}>
-                        <label class="form-check-label small" for="cat_{{ cat }}">{{ cat }}</label>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
-        <div class="el-filter-field">
-            <div class="el-filter-input-wrap">
-                <i class="bi bi-calendar3 el-filter-icon"></i>
-                <input type="date" name="start_date" class="el-filter-input el-filter-date"
-                       value="{{ start_date }}">
-            </div>
-        </div>
-
-        <div class="el-filter-field">
-            <div class="el-filter-input-wrap">
-                <i class="bi bi-calendar3 el-filter-icon"></i>
-                <input type="date" name="end_date" class="el-filter-input el-filter-date"
-                       value="{{ end_date }}">
-            </div>
-        </div>
-
-        <div class="el-filter-actions">
-            <button type="submit" class="el-btn-apply">
-                <i class="bi bi-funnel me-1"></i> Apply
-            </button>
-            <a href="{% url 'expense_list' %}" class="el-btn-clear">Clear</a>
-            <button type="button" class="el-btn-delete-sel" id="deleteSelectedBtn"
-                    onclick="submitBulkDelete()" disabled>
-                <i class="bi bi-trash3 me-1"></i>
-                Delete Selected (<span id="selCount">0</span>)
-            </button>
-        </div>
-    </form>
-</div>
-
-<!-- Table View -->
-<div id="tableView">
-<div class="el-table-card">
-    {% if expenses %}
-    <div class="table-responsive">
-        <table class="el-table">
-            <thead>
-                <tr>
-                    <th style="width:40px;">
-                        <input type="checkbox" class="el-checkbox" id="selectAllRows" title="Select all">
-                    </th>
-                    <th>Date</th>
-                    <th>Title</th>
-                    <th>Category</th>
-                    <th class="text-end">Amount</th>
-                    <th class="text-center">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for expense in expenses %}
-                <tr class="el-row" id="row-{{ expense.id }}">
-                    <td>
-                        <input type="checkbox" class="el-checkbox row-checkbox"
-                               value="{{ expense.id }}" onchange="updateSelection()">
-                    </td>
-                    <td><span class="el-date">{{ expense.date }}</span></td>
-                    <td>
-                        <div class="el-title-cell">
-                            <span class="el-cat-dot el-cat-{{ expense.category|lower }}"></span>
-                            <span class="el-title">{{ expense.title }}</span>
-                            {% if expense.source == 'bank' %}<span class="el-bank-badge">🏦 Auto</span>{% endif %}
-                        </div>
-                    </td>
-                    <td>
-                        <span class="el-badge el-badge-{{ expense.category|lower }}">{{ expense.category }}</span>
-                    </td>
-                    <td class="text-end">
-                        <span class="el-amount">{{ expense.amount|inr }}</span>
-                    </td>
-                    <td class="text-center">
-                        <a href="{% url 'edit_expense' expense.id %}" class="el-action-btn edit" title="Edit">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                        <a href="{% url 'delete_expense' expense.id %}" class="el-action-btn delete" title="Delete">
-                            <i class="bi bi-trash3"></i>
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<!-- Loading overlay -->
+<div id="elLoadingOverlay" style="display:none;position:fixed;inset:0;background:rgba(255,255,255,0.55);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:18px 28px;box-shadow:0 4px 24px rgba(0,0,0,0.12);display:flex;align-items:center;gap:12px;font-size:0.9rem;color:#475569;">
+        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+        Loading…
     </div>
-    {% else %}
-    <div class="el-empty">
-        <i class="bi bi-receipt el-empty-icon"></i>
-        <p class="el-empty-title">No expenses for {{ view_month_name }} {{ view_year }}</p>
-        <p class="el-empty-sub">Add your first expense for this month.</p>
-        <a href="{% url 'add_expense' %}" class="el-btn-add mt-3">
-            <i class="bi bi-plus-lg me-1"></i> Add Expense
-        </a>
-    </div>
-    {% endif %}
 </div>
-</div>
-
-<!-- Card View -->
-<div id="cardView" style="display:none;">
-    {% if expenses %}
-    <div class="el-card-select-bar mb-3">
-        <label class="el-card-select-all-label">
-            <input type="checkbox" class="el-checkbox" id="selectAllCards" onchange="syncSelectAllCards()">
-            <span>Select all</span>
-        </label>
-    </div>
-    <div class="el-card-grid">
-        {% for expense in expenses %}
-        <div class="el-expense-card" id="card-{{ expense.id }}">
-            <input type="checkbox" class="el-checkbox card-checkbox el-card-cb"
-                   value="{{ expense.id }}" onchange="updateSelection()">
-            <div class="el-expense-card-top">
-                <span class="el-badge el-badge-{{ expense.category|lower }}">{{ expense.category }}</span>
-                <span class="el-amount">{{ expense.amount|inr }}</span>
-            </div>
-            <div class="el-expense-card-title">
-                {{ expense.title }}
-                {% if expense.source == 'bank' %}<span class="el-bank-badge">🏦 Auto</span>{% endif %}
-            </div>
-            <div class="el-expense-card-date">
-                <i class="bi bi-calendar3 me-1"></i>{{ expense.date }}
-            </div>
-            <div class="el-expense-card-actions">
-                <a href="{% url 'edit_expense' expense.id %}" class="el-action-btn edit" title="Edit">
-                    <i class="bi bi-pencil"></i>
-                </a>
-                <a href="{% url 'delete_expense' expense.id %}" class="el-action-btn delete" title="Delete">
-                    <i class="bi bi-trash3"></i>
-                </a>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="el-table-card">
-        <div class="el-empty">
-            <i class="bi bi-receipt el-empty-icon"></i>
-            <p class="el-empty-title">No expenses for {{ view_month_name }} {{ view_year }}</p>
-        </div>
-    </div>
-    {% endif %}
-</div>
-
-{% if page_obj.paginator.num_pages > 1 %}
-<div class="el-pagination">
-    {% if page_obj.has_previous %}
-    <a href="?page={{ page_obj.previous_page_number }}&per_page={{ per_page }}&month={{ view_month }}&year={{ view_year }}&search={{ search }}&start_date={{ start_date }}&end_date={{ end_date }}{% for c in selected_categories %}&category={{ c }}{% endfor %}" class="el-page-btn">
-        <i class="bi bi-chevron-left"></i>
-    </a>
-    {% else %}
-    <span class="el-page-btn disabled"><i class="bi bi-chevron-left"></i></span>
-    {% endif %}
-
-    {% for num in page_obj.paginator.page_range %}
-        {% if page_obj.number == num %}
-        <span class="el-page-btn active">{{ num }}</span>
-        {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
-        <a href="?page={{ num }}&per_page={{ per_page }}&month={{ view_month }}&year={{ view_year }}&search={{ search }}&start_date={{ start_date }}&end_date={{ end_date }}{% for c in selected_categories %}&category={{ c }}{% endfor %}" class="el-page-btn">{{ num }}</a>
-        {% endif %}
-    {% endfor %}
-
-    {% if page_obj.has_next %}
-    <a href="?page={{ page_obj.next_page_number }}&per_page={{ per_page }}&month={{ view_month }}&year={{ view_year }}&search={{ search }}&start_date={{ start_date }}&end_date={{ end_date }}{% for c in selected_categories %}&category={{ c }}{% endfor %}" class="el-page-btn">
-        <i class="bi bi-chevron-right"></i>
-    </a>
-    {% else %}
-    <span class="el-page-btn disabled"><i class="bi bi-chevron-right"></i></span>
-    {% endif %}
-
-    <span class="el-page-info">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-</div>
-{% endif %}
-
-<!-- Per-page selector — always visible -->
-<div class="el-perpage-wrap">
-    <span class="el-perpage-label"><i class="bi bi-list-ol me-1"></i>Rows per page</span>
-    <div class="el-perpage-pills">
-        {% for n in "10,20,50"|split:"," %}
-        <a href="?page=1&per_page={{ n }}&month={{ view_month }}&year={{ view_year }}&search={{ search }}&start_date={{ start_date }}&end_date={{ end_date }}{% for c in selected_categories %}&category={{ c }}{% endfor %}"
-           class="el-perpage-pill {% if per_page|stringformat:'s' == n %}active{% endif %}">{{ n }}</a>
-        {% endfor %}
-    </div>
-    <span class="el-perpage-count">{{ count }} total</span>
-</div>
-
-<span id="pageData"
-    data-has-active="{% if search or selected_categories or start_date or end_date %}true{% else %}false{% endif %}"
-    style="display:none;"></span>
 
 <form id="bulkDeleteForm" method="post" action="{% url 'bulk_delete_expenses' %}" style="display:none;">
     {% csrf_token %}
     <div id="bulkDeleteInputs"></div>
 </form>
 
-<script>
-var STORAGE_KEY = 'fintrack_expense_view';
-var FILTER_KEY  = 'fintrack_filter_open';
-
-function goToMonth() {
-    var m = document.getElementById('monthSelect').value;
-    var y = document.getElementById('yearSelect').value;
-    var params = new URLSearchParams(window.location.search);
-    params.set('month', m);
-    params.set('year', y);
-    params.set('page', '1');
-    window.location.href = '?' + params.toString();
-}
-
-function setView(view) {
-    document.getElementById('tableView').style.display = view === 'table' ? 'block' : 'none';
-    document.getElementById('cardView').style.display  = view === 'card'  ? 'block' : 'none';
-    document.getElementById('btnTable').classList.toggle('active', view === 'table');
-    document.getElementById('btnCard').classList.toggle('active',  view === 'card');
-    localStorage.setItem(STORAGE_KEY, view);
-}
-
-function toggleFilters() {
-    var strip  = document.getElementById('filterStrip');
-    var isOpen = strip.style.display !== 'none';
-    strip.style.display = isOpen ? 'none' : 'block';
-    localStorage.setItem(FILTER_KEY, isOpen ? 'false' : 'true');
-}
-
-var selectAllRows = document.getElementById('selectAllRows');
-if (selectAllRows) {
-    selectAllRows.addEventListener('change', function() {
-        document.querySelectorAll('.row-checkbox').forEach(function(cb) {
-            cb.checked = selectAllRows.checked;
-            toggleRowHighlight(cb);
-        });
-        updateSelection();
-    });
-}
-
-function toggleRowHighlight(cb) {
-    var row = cb.closest('tr');
-    if (row) row.classList.toggle('el-row-selected', cb.checked);
-}
-
-function updateSelection() {
-    var checked = document.querySelectorAll('.row-checkbox:checked, .card-checkbox:checked');
-    var btn = document.getElementById('deleteSelectedBtn');
-    var countEl = document.getElementById('selCount');
-    if (btn) btn.disabled = checked.length === 0;
-    if (countEl) countEl.textContent = checked.length;
-    document.querySelectorAll('.row-checkbox').forEach(function(cb) { toggleRowHighlight(cb); });
-    document.querySelectorAll('.card-checkbox').forEach(function(cb) {
-        var card = cb.closest('.el-expense-card');
-        if (card) card.classList.toggle('el-card-selected', cb.checked);
-    });
-    var allRows = document.querySelectorAll('.row-checkbox');
-    var checkedRows = document.querySelectorAll('.row-checkbox:checked');
-    if (selectAllRows) {
-        selectAllRows.checked = allRows.length > 0 && checkedRows.length === allRows.length;
-        selectAllRows.indeterminate = checkedRows.length > 0 && checkedRows.length < allRows.length;
-    }
-    var allCards = document.querySelectorAll('.card-checkbox');
-    var checkedCards = document.querySelectorAll('.card-checkbox:checked');
-    var sac = document.getElementById('selectAllCards');
-    if (sac) {
-        sac.checked = allCards.length > 0 && checkedCards.length === allCards.length;
-        sac.indeterminate = checkedCards.length > 0 && checkedCards.length < allCards.length;
-    }
-}
-
-function syncSelectAllCards() {
-    var sac = document.getElementById('selectAllCards');
-    document.querySelectorAll('.card-checkbox').forEach(function(cb) { cb.checked = sac.checked; });
-    updateSelection();
-}
-
-function submitBulkDelete() {
-    var checked = document.querySelectorAll('.row-checkbox:checked, .card-checkbox:checked');
-    if (checked.length === 0) return;
-    if (!confirm('Delete ' + checked.length + ' selected expense' + (checked.length > 1 ? 's' : '') + '?')) return;
-    var container = document.getElementById('bulkDeleteInputs');
-    container.innerHTML = '';
-    var ids = new Set();
-    checked.forEach(function(cb) { ids.add(cb.value); });
-    ids.forEach(function(id) {
-        var input = document.createElement('input');
-        input.type = 'hidden'; input.name = 'selected_ids'; input.value = id;
-        container.appendChild(input);
-    });
-    document.getElementById('bulkDeleteForm').submit();
-}
-
-setView(localStorage.getItem(STORAGE_KEY) || 'table');
-
-var hasActive = document.getElementById('pageData').dataset.hasActive === 'true';
-var filterStrip = document.getElementById('filterStrip');
-if (!hasActive && localStorage.getItem(FILTER_KEY) === 'false') {
-    filterStrip.style.display = 'none';
-}
-</script>
+<script src="{% static 'js/expense_list.js' %}"></script>
 
 {% endblock %}

@@ -10,7 +10,7 @@ from .savings import savings_goals, savings_goal_add, savings_goal_edit, savings
 from .export import export_data
 from .upload import settings_upload
 from .settings import settings
-from .payment import pricing, create_order, verify_payment
+from .payment import pricing, create_order, verify_payment, razorpay_webhook
 
 __all__ = [
     'landing',
@@ -42,4 +42,5 @@ __all__ = [
     'pricing',
     'create_order',
     'verify_payment',
+    'razorpay_webhook',
 ]

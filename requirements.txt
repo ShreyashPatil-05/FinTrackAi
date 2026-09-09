@@ -16,3 +16,4 @@ django-storages==1.14.6
 requests==2.32.3
 sendgrid==6.11.0
 google-genai==2.10.0
+razorpay==1.4.1

@@ -52,8 +52,9 @@ urlpatterns = [
     path('savings-goals/<int:pk>/delete/',        views.savings_goal_delete,  name='savings_goal_delete'),
 
     # Pricing & Payment
-    path('pricing/',                views.pricing,        name='pricing'),
-    path('payment/create-order/',   views.create_order,   name='create_order'),
-    path('payment/verify/',         views.verify_payment, name='verify_payment'),
+    path('pricing/',                views.pricing,           name='pricing'),
+    path('payment/create-order/',   views.create_order,      name='create_order'),
+    path('payment/verify/',         views.verify_payment,    name='verify_payment'),
+    path('payment/webhook/',        views.razorpay_webhook,  name='razorpay_webhook'),
 
 ]

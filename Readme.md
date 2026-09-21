@@ -1,6 +1,8 @@
-# FinTrack — Personal Finance Tracker
+# FinTrack — AI-Powered Personal Finance Tracker
 
-A full-stack web application built with Django that helps users track expenses, manage income, set savings goals and monitor subscriptions — all in one place.
+A full-stack Django web application for tracking expenses, managing income, setting savings goals, monitoring subscriptions, and getting AI-powered financial insights — with a built-in SaaS monetisation layer.
+
+**Live:** [web-production-95045.up.railway.app](https://web-production-95045.up.railway.app)
 
 ---
 
@@ -9,59 +11,75 @@ A full-stack web application built with Django that helps users track expenses, 
 | Layer | Technology |
 |---|---|
 | Backend | Django 6.0.2 |
-| Database | SQLite |
-| Frontend | HTML, CSS, Bootstrap 5, Chart.js |
+| Database | PostgreSQL (production) / SQLite (development) |
+| Frontend | HTML5, CSS3, Bootstrap 5.3, Chart.js |
 | Auth | Django sessions + Google OAuth 2.0 (django-allauth) |
-| Security | django-axes (brute force protection) |
-| Email | Gmail SMTP |
-| Testing | Django TestCase (54 tests) |
+| AI | Google Gemini 2.5 Flash (`google.genai`) |
+| Payments | Razorpay (UPI, cards, net banking) |
+| Email | SendGrid HTTP API (production) / SMTP (development) |
+| Security | django-axes, reCAPTCHA v2, CSP headers |
+| Deployment | Railway (Nixpacks, PostgreSQL, cron jobs) |
+| Static files | WhiteNoise |
 
 ---
 
 ## Features
 
-### Core
-- Expense tracking with categories, search and month-based navigation
-- Income management with monthly view and source tracking
-- Interactive dashboard with spending charts, financial health score and month-end forecast
-- Category-wise budget limits with live progress bars and alerts
-- Savings goals with contribution history and progress tracking
-- Subscription tracker with auto-billing date advancement
-- Pagination with 10 / 20 / 50 rows per page selector
-- Indian currency formatting across all pages (Rs., L, Cr)
+### Core Financial Tracking
+- **Expense tracking** — CRUD, categories, search, month navigation, AJAX pagination
+- **Income management** — multiple sources, monthly view
+- **Dashboard** — spending charts, category breakdown, financial health score, month-end forecast, budget alerts
+- **Budget management** — per-category monthly limits with live progress bars
+- **Savings goals** — target amounts, contribution history, predicted completion date
+- **Subscription tracker** — auto-billing date advancement, overdue detection
+- **CSV import / export** — bulk import with per-row validation, filtered export
 
-### Mock Bank API
-- Webhook endpoint at POST /api/webhook/bank/
-- Per-user webhook token stored in DB — token is bound to a specific user, no cross-user posting possible
-- Token can be regenerated via Django admin (WebhookToken model)
-- Standalone simulator script that sends fake transactions every 8 seconds
-- Auto-imported expenses tagged with a bank badge in the expense list
+### AI Insights *(Pro)*
+- Powered by **Google Gemini 2.5 Flash**
+- Analyses last 3 months of transactions and generates 5 personalised, actionable insights
+- Rule-based fallback insights for free users or when API key is not set
+- 15-minute response cache + 10 calls/hour rate limit per user
+- Month-over-month comparison, budget status bars, anomaly detection, savings goal progress
 
-### Auth and Security
-- Register / Login / Logout (logout via POST only — CSRF safe)
-- Google OAuth 2.0 sign-in
-- Email verification on registration (Gmail SMTP) with 24-hour token expiry
-- Brute force protection — account locked after 5 failed login attempts
-- Change password requires current password — same error message whether username exists or not (prevents enumeration)
-- Account deletion requires password confirmation
-- Avatar upload validates file type via magic bytes and enforces 2MB size limit
-- Per-user webhook tokens bound to a specific user — no cross-user posting
-- Session-based authentication with login_required route protection
-- never_cache on all edit/form views — prevents stale data on browser back
-- SECRET_KEY loaded from environment variable
+### SaaS / Monetisation
+- **Free plan** — 50 expenses/mo, 20 income/mo, 2 savings goals, 3 subscriptions, 3 budget categories
+- **Pro plan** — unlimited everything + AI Insights, CSV import/export, bank webhook
+- Pricing: ₹49/month or ₹499/year
+- **Razorpay** payment integration (UPI, cards, net banking)
+  - Server-side HMAC-SHA256 payment verification
+  - Server-to-server webhook handler with signature verification and idempotency
+  - Dual activation path: frontend callback + webhook fallback
+- Plan expiry management (`expire_plans` management command)
+- Pro plan email notifications (payment success, expiry reminder, plan expired)
 
-### Data
-- CSV import with per-row error reporting for invalid data
-- CSV export with date range and category filters
-- Account deletion with full data cascade
+### Authentication & Security
+- Email/password registration with email verification (SendGrid)
+- Google OAuth 2.0 (django-allauth)
+- Forgot password / reset password flow (1-hour token expiry)
+- Remember Me (30-day session)
+- Brute force protection (django-axes — 5 attempts = 15-min lockout)
+- reCAPTCHA v2 on registration
+- Rate limiting on registration, verification, and resend endpoints
+- CSRF protection on all state-changing endpoints
+- `@require_POST` on all delete views — no GET-triggered deletions
+- SHA-256 hashed webhook tokens
+- Avatar file type validated by magic bytes
+- `SECURE_HSTS`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` in production
+
+### Bank Webhook API
+- `POST /api/webhook/bank/` — receives simulated bank transactions
+- Per-user tokens, rate-limited (60 req/min per user)
+- Auto-categorisation with fallback to "Other"
+- Expenses tagged with a `🏦 Auto` badge in the list
+- Standalone `mock_bank_simulator.py` for local testing *(Pro feature)*
 
 ### UX
-- Light and dark mode
-- Responsive design
+- Light and dark mode (shared `theme.js`, no inline scripts)
+- Animated auth/login/register page (particles, gradient shift, slide-in form)
+- Responsive design (mobile-first)
+- AJAX pagination on expense list (no full-page reloads)
 - Onboarding tour for new users
-- Custom 404 error page
-- Budget alerts banner on dashboard
-- Empty state for new users with zero expenses
+- Custom 404 page
 
 ---
 
@@ -69,27 +87,62 @@ A full-stack web application built with Django that helps users track expenses, 
 
 ```
 fintrack/
-├── accounts/           # Auth — register, login, logout, email verification
-├── expenses/           # Expense CRUD, bulk delete, pagination, webhook
-│   └── webhook.py      # Mock bank webhook receiver
-├── dashboard/          # Dashboard, income, budget, savings, subscriptions, profile
-│   └── templatetags/   # Custom template filters (inr currency formatter)
-├── templates/          # Global templates — base, navbar, footer, landing, 404
+├── accounts/               # Auth — register, login, email verification, password reset
+│   ├── services/
+│   │   └── auth_service.py
+│   └── migrations/
+├── expenses/               # Expense CRUD, bulk delete, AJAX pagination, webhook
+│   └── webhook.py
+├── dashboard/              # Dashboard, income, budget, savings, subscriptions, insights
+│   ├── services/
+│   │   ├── plan_service.py     # SaaS plan limits
+│   │   ├── email_service.py    # Payment / expiry emails
+│   │   ├── budget_service.py
+│   │   ├── expense_service.py  # Forecasting, anomaly detection
+│   │   ├── income_service.py
+│   │   ├── savings_service.py
+│   │   └── subscription_service.py
+│   ├── views/
+│   │   ├── dashboard.py
+│   │   ├── insights.py         # AI insights (Gemini)
+│   │   ├── payment.py          # Razorpay create_order, verify_payment, webhook
+│   │   ├── income.py
+│   │   ├── savings.py
+│   │   ├── subscriptions.py
+│   │   ├── budget.py
+│   │   ├── export.py
+│   │   ├── upload.py
+│   │   └── profile.py
+│   ├── management/commands/
+│   │   └── expire_plans.py     # Daily cron — expire Pro plans
+│   └── decorators.py           # @plan_required decorator
+├── templates/              # Global templates — base, navbar, landing
 ├── static/
-│   ├── css/styles.css  # All styles (light + dark mode)
-│   └── js/utils.js     # Shared JS utilities (inrJS formatter)
-├── fintrack/           # Django project config — settings, urls, wsgi
-├── mock_bank_simulator.py  # Standalone script to simulate bank transactions
-├── .env                # Environment variables (not committed)
-├── MOSCOW.md           # MoSCoW prioritization analysis
+│   ├── css/styles.css
+│   └── js/
+│       ├── theme.js            # Shared dark/light mode toggle
+│       ├── dashboard.js
+│       ├── insights.js
+│       ├── expense_list.js     # AJAX pagination
+│       ├── pricing.js          # Razorpay checkout
+│       └── ...
+├── fintrack/               # Django project config
+│   ├── settings_base.py
+│   ├── settings_prod.py    # Railway production settings
+│   └── settings_dev.py
+├── Feature implementation/ # Feature planning docs
+├── code_log/               # Development session logs (gitignored)
+├── mock_bank_simulator.py
+├── railway.toml
+├── nixpacks.toml
 └── requirements.txt
 ```
 
 ---
 
-## Setup
+## Local Setup
 
-### 1. Clone the repo
+### 1. Clone
 ```bash
 git clone https://github.com/ShreyashPatil-05/FinTrackAi.git
 cd FinTrackAi
@@ -100,24 +153,36 @@ cd FinTrackAi
 pip install -r requirements.txt
 ```
 
-### 3. Create .env file
-```
+### 3. Create `.env`
+```env
 SECRET_KEY=your-secret-key-here
+
+# Email — use SMTP for local dev
 EMAIL_HOST_USER=your_gmail@gmail.com
 EMAIL_HOST_PASSWORD=your_gmail_app_password
-BANK_WEBHOOK_SECRET=fintrack-mock-bank-secret-2026
+
+# Google OAuth (optional for local)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# reCAPTCHA (optional for local)
+RECAPTCHA_SITE_KEY=
+RECAPTCHA_SECRET_KEY=
+
+# Gemini AI — enables Pro AI Insights
+GEMINI_API_KEY=
+
+# Razorpay — enables payment flow
+RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxx
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
 ```
 
-> Generate a secret key at https://djecrety.ir
-> Get a Gmail App Password at myaccount.google.com > Security > App Passwords
+> Generate a secret key: `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`
 
-### 4. Run migrations
+### 4. Migrate and run
 ```bash
 python manage.py migrate
-```
-
-### 5. Start the server
-```bash
 python manage.py runserver
 ```
 
@@ -125,83 +190,100 @@ Visit http://127.0.0.1:8000
 
 ---
 
-## Mock Bank API — Demo
+## Production Deployment (Railway)
 
-The mock bank simulator sends fake transactions to your app automatically, simulating how a real bank would push transaction data. Each user has their own webhook token stored in the database — the token is bound to that user so no cross-user posting is possible.
+The project is configured for Railway with Nixpacks:
 
-### Step 1 — Create a webhook token for your user
-- Go to http://127.0.0.1:8000/admin/
-- Dashboard > Webhook Tokens > Add
-- Select your user and save
-- Copy the generated token
+- `nixpacks.toml` — runs `collectstatic` at **build time** (baked into image)
+- `railway.toml` — runs `migrate` at **pre-deploy** (before traffic switches)
+- Gunicorn start command configured in `railway.toml`
 
-### Step 2 — Update the simulator
-Open mock_bank_simulator.py and set your token:
-```python
-WEBHOOK_SECRET = 'paste-your-token-here'
+### Required Railway environment variables
 ```
-Remove or ignore the `USER_ID` line — the token identifies the user automatically.
+SECRET_KEY, DEBUG, ALLOWED_HOSTS, SITE_ID
+DATABASE_URL
+EMAIL_HOST_PASSWORD          # SendGrid API key (SG.xxx...)
+DEFAULT_FROM_EMAIL
+GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+RECAPTCHA_SITE_KEY, RECAPTCHA_SECRET_KEY
+GEMINI_API_KEY               # optional
+RAZORPAY_KEY_ID              # required for payments
+RAZORPAY_KEY_SECRET
+RAZORPAY_WEBHOOK_SECRET
+```
 
-### Step 3 — Open two terminals
-
-Terminal 1 — run Django:
+### Recommended cron jobs (Railway)
 ```bash
-python manage.py runserver
+0 0 * * *   python manage.py expire_plans
+0 3 * * *   python manage.py cleanup_expired_tokens
 ```
-
-Terminal 2 — run the simulator:
-```bash
-python mock_bank_simulator.py
-```
-
-### Step 4 — Watch it work
-You will see output like this in Terminal 2:
-```
-[SENT]  Swiggy                    Food            Rs.347.00
-[SENT]  Netflix                   Subscription    Rs.649.00
-[SENT]  Uber                      Transport       Rs.168.00
-```
-
-Every 8 seconds a new expense appears on your dashboard and expense list with a purple "Auto" badge showing it came from the bank.
-
-Press Ctrl+C in Terminal 2 to stop the simulator.
 
 ---
 
-## Running Tests
+## Razorpay Setup
+
+1. Add `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` to `.env`
+2. In Razorpay Dashboard → Settings → Webhooks:
+   - URL: `https://your-domain.com/payment/webhook/`
+   - Events: `payment.captured`, `payment.failed`
+   - Secret: same value as `RAZORPAY_WEBHOOK_SECRET`
+3. Use test card `4111 1111 1111 1111` / any future expiry / CVV `123` / OTP `1234`
+
+---
+
+## Mock Bank API
 
 ```bash
-python manage.py test dashboard
+# Terminal 1
+python manage.py runserver
+
+# Terminal 2
+python mock_bank_simulator.py
 ```
 
-54 tests covering models, views, auth, pagination, budget alerts, savings goals, and subscriptions.
+1. Go to Django Admin → Webhook Tokens → create one for your user
+2. Copy the token into `mock_bank_simulator.py` as `WEBHOOK_SECRET`
+3. Expenses auto-appear in the dashboard with a `🏦 Auto` badge every 8 seconds
+
+---
+
+## Plan Limits
+
+| Feature | Free | Pro |
+|---|---|---|
+| Expenses / month | 50 | Unlimited |
+| Income entries / month | 20 | Unlimited |
+| Savings goals | 2 | Unlimited |
+| Subscriptions | 3 | Unlimited |
+| Budget categories | 3 | Unlimited |
+| AI Insights | ❌ | ✅ Gemini |
+| CSV Import / Export | ❌ | ✅ |
+| Bank Webhook | ❌ | ✅ |
 
 ---
 
 ## Google OAuth Setup
 
-1. Go to https://console.cloud.google.com
-2. Create a project > APIs and Services > Credentials > OAuth 2.0 Client ID
-3. Add redirect URI: http://localhost:8000/social/google/login/callback/
-4. Also add: http://127.0.0.1:8000/social/google/login/callback/
-5. In Django admin > Sites > set domain to localhost:8000
-6. Social Applications > Add > Google > paste Client ID and Secret
+1. [Google Cloud Console](https://console.cloud.google.com) → Create project → APIs & Services → Credentials → OAuth 2.0 Client ID
+2. Redirect URIs: `http://localhost:8000/social/google/login/callback/`
+3. Django Admin → Sites → set domain to `localhost:8000`
+4. Django Admin → Social Applications → Add → Google → paste Client ID and Secret
 
 ---
 
-## Environment Variables
+## Environment Variables Reference
 
-| Variable | Description |
-|---|---|
-| SECRET_KEY | Django secret key for cryptographic signing |
-| EMAIL_HOST_USER | Gmail address used to send verification emails |
-| EMAIL_HOST_PASSWORD | Gmail App Password (not your real Gmail password) |
-
----
-
-## Future Scope
-
-- Celery + Redis — scheduled email reminders for subscription renewals and budget alerts
-- Django REST Framework — REST API for mobile app or Power BI integration
-- Real bank API integration using Setu or Finvu (India)
-- PostgreSQL — replace SQLite for multi-user production deployment
+| Variable | Required | Description |
+|---|---|---|
+| `SECRET_KEY` | ✅ | Django cryptographic signing key |
+| `DATABASE_URL` | Production | PostgreSQL connection string |
+| `EMAIL_HOST_PASSWORD` | ✅ | SendGrid API key (`SG.xxx`) or Gmail app password |
+| `DEFAULT_FROM_EMAIL` | Production | Sender email address |
+| `GOOGLE_CLIENT_ID` | OAuth | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | OAuth | Google OAuth client secret |
+| `RECAPTCHA_SITE_KEY` | Registration | reCAPTCHA v2 site key |
+| `RECAPTCHA_SECRET_KEY` | Registration | reCAPTCHA v2 secret key |
+| `GEMINI_API_KEY` | AI Insights | Google Gemini API key |
+| `RAZORPAY_KEY_ID` | Payments | Razorpay key ID (`rzp_test_` or `rzp_live_`) |
+| `RAZORPAY_KEY_SECRET` | Payments | Razorpay key secret |
+| `RAZORPAY_WEBHOOK_SECRET` | Payments | Razorpay webhook signature secret |

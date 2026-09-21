@@ -16,8 +16,6 @@
         </button>
 
         <div class="collapse navbar-collapse" id="navbarContent">
-
-            <!-- Right Section -->
             <ul class="navbar-nav ms-auto align-items-center">
 
                 {% if user.is_authenticated %}
@@ -59,11 +57,6 @@
                         </li>
                     </ul>
                 </li>
-                <li class="nav-item ms-2">
-                    <button class="theme-toggle" id="themeToggle" title="Toggle theme">
-                        <i class="bi bi-moon-fill" id="themeIcon"></i>
-                    </button>
-                </li>
 
                 {% else %}
                     {% if not hide_auth_nav %}
@@ -83,3 +76,10 @@
         </div>
     </div>
 </nav>
+
+{% if request.resolver_match.url_name == 'landing' %}
+<button class="theme-toggle" id="landingThemeToggle" title="Toggle theme"
+        style="position:fixed;top:1.1rem;right:1.2rem;z-index:9999;border-radius:50%;width:36px;height:36px;">
+    <i class="bi bi-moon-fill" id="landingThemeIcon"></i>
+</button>
+{% endif %}

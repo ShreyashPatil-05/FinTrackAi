@@ -78,31 +78,7 @@
     <!-- Custom JS -->
     <script src="{% static 'js/filters.js' %}"></script>
 
-    <script>
-      (function() {
-        var saved = localStorage.getItem('ft_theme') || 'light';
-        if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-      })();
-      document.addEventListener('DOMContentLoaded', function() {
-        var btn  = document.getElementById('themeToggle');
-        var icon = document.getElementById('themeIcon');
-        if (!btn) return;
-
-        function applyTheme(theme) {
-          document.documentElement.setAttribute('data-theme', theme);
-          localStorage.setItem('ft_theme', theme);
-          icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
-        }
-
-        // Init icon
-        applyTheme(localStorage.getItem('ft_theme') || 'light');
-
-        btn.addEventListener('click', function() {
-          var current = document.documentElement.getAttribute('data-theme') || 'light';
-          applyTheme(current === 'dark' ? 'light' : 'dark');
-        });
-      });
-    </script>
+    <script src="{% static 'js/theme.js' %}"></script>
     <script>
       // Dynamic category colors for unknown/custom categories
       document.addEventListener('DOMContentLoaded', function() {

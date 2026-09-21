@@ -3928,9 +3928,31 @@ select.expense-input {
     cursor: pointer;
     transition: background .15s, color .15s, border-color .15s;
 }
+/* ── Landing navbar dark mode ── */
+[data-theme="dark"] .navbar-landing {
+    background: #0f172a !important;
+    border-bottom-color: #1e293b;
+}
+[data-theme="dark"] .navbar-landing .nav-link { color: #cbd5e1 !important; }
+[data-theme="dark"] .navbar-landing .nav-link:hover { color: #f1f5f9 !important; }
+[data-theme="dark"] .navbar-landing .nav-item .nav-link:hover { color: #818cf8 !important; }
+[data-theme="dark"] .navbar-landing .navbar-brand-text { color: #f1f5f9; }
+[data-theme="dark"] .navbar-landing .btn-nav-ghost { color: #cbd5e1; border-color: #334155; }
+[data-theme="dark"] .navbar-landing .btn-nav-ghost:hover { background: #1e293b; color: #f1f5f9; }
+[data-theme="dark"] .navbar-landing .theme-toggle { background: rgba(255,255,255,.08); border-color: #334155; color: #94a3b8; }
+[data-theme="dark"] .navbar-landing .theme-toggle:hover { background: #1e293b; color: #f1f5f9; }
+@media (max-width: 991.98px) {
+    [data-theme="dark"] .navbar-landing .navbar-collapse.show {
+        background: #0f172a;
+        border-top-color: #1e293b;
+    }
+}
 .theme-toggle:hover { background: #f1f5f9; color: #334155; }
-.navbar-landing .theme-toggle { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.2); color: #fff; }
-.navbar-landing .theme-toggle:hover { background: rgba(255,255,255,.2); }
+.navbar-landing .theme-toggle {
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+}
 
 /* ══════════════════════════════════════════════════════
    DARK MODE — Full Coverage
@@ -6651,30 +6673,95 @@ body { overflow-x: hidden; }
 .lp-cta-btn-ghost:hover{border-color:#fff;}
 .lp-cta .lp-badge{background:rgba(255,255,255,0.1);color:#a5b4fc;border-color:rgba(255,255,255,0.2);}
 
-/* Dark mode */
-[data-theme="dark"] .lp-hero{background:#0f172a;}
-[data-theme="dark"] .lp-hero-title{color:#f1f5f9;}
-[data-theme="dark"] .lp-hero-sub{color:#94a3b8;}
-[data-theme="dark"] .lp-btn-ghost{border-color:#334155;color:#cbd5e1;}
-[data-theme="dark"] .lp-btn-ghost:hover{border-color:#6366f1;color:#a5b4fc;}
-[data-theme="dark"] .lp-trust-row{color:#64748b;}
-[data-theme="dark"] .lp-mock{background:#1e293b;border-color:#334155;}
-[data-theme="dark"] .lp-mock-val{color:#f1f5f9;}
-[data-theme="dark"] .lp-proof{background:#1e293b;border-color:#334155;}
-[data-theme="dark"] .lp-proof-num{color:#f1f5f9;}
-[data-theme="dark"] .lp-features{background:#0f172a;}
-[data-theme="dark"] .lp-feat-card{background:#1e293b;border-color:#334155;}
-[data-theme="dark"] .lp-feat-card h5{color:#f1f5f9;}
-[data-theme="dark"] .lp-how{background:#1e293b;}
-[data-theme="dark"] .lp-pricing{background:#0f172a;}
-[data-theme="dark"] .lp-plan-card{background:#1e293b;border-color:#334155;}
-[data-theme="dark"] .lp-plan-price{color:#f1f5f9;}
-[data-theme="dark"] .lp-plan-features li{color:#cbd5e1;}
-[data-theme="dark"] .lp-faq{background:#1e293b;}
-[data-theme="dark"] .lp-faq-item{background:#0f172a;border-color:#334155;}
-[data-theme="dark"] .lp-faq-q{color:#f1f5f9;}
-[data-theme="dark"] .lp-cta{background:#0f172a;}
-[data-theme="dark"] .lp-section-title{color:#f1f5f9;}
+/* Dark mode — complete landing page overrides */
+[data-theme="dark"] .lp-hero { background: #0f172a; }
+[data-theme="dark"] .lp-hero-title { color: #f1f5f9; }
+[data-theme="dark"] .lp-gradient-text { color: #818cf8; -webkit-text-fill-color: #818cf8; }
+[data-theme="dark"] .lp-hero-sub { color: #94a3b8; }
+[data-theme="dark"] .lp-badge { background: rgba(99,102,241,0.15); color: #a5b4fc; border-color: rgba(99,102,241,0.3); }
+[data-theme="dark"] .lp-btn-primary { background: #6366f1; color: #fff; }
+[data-theme="dark"] .lp-btn-ghost { border-color: #334155; color: #cbd5e1; }
+[data-theme="dark"] .lp-btn-ghost:hover { border-color: #6366f1; color: #a5b4fc; }
+[data-theme="dark"] .lp-trust-row { color: #64748b; }
+
+/* Preview */
+[data-theme="dark"] .lp-preview-wrap { border-color: #334155; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+
+/* Mock widget */
+[data-theme="dark"] .lp-mock { background: #1e293b; border-color: #334155; }
+[data-theme="dark"] .lp-mock-val { color: #f1f5f9; }
+[data-theme="dark"] .lp-mock-title { color: #64748b; }
+[data-theme="dark"] .lp-mock-chart-label { color: #475569; }
+[data-theme="dark"] .lp-mock-bar-wrap span { color: #475569; }
+[data-theme="dark"] .lp-mock-ai { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.25); color: #cbd5e1; }
+[data-theme="dark"] .lp-mock-bar-fill { background: #334155; }
+[data-theme="dark"] .lp-mock-bar-fill.active { background: #6366f1; }
+
+/* Social proof */
+[data-theme="dark"] .lp-proof { background: #1e293b; border-color: #334155; }
+[data-theme="dark"] .lp-proof-num { color: #f1f5f9; }
+[data-theme="dark"] .lp-proof-desc { color: #818cf8; }
+[data-theme="dark"] .lp-proof-sep { background: #334155; }
+
+/* Section headings */
+[data-theme="dark"] .lp-section-title { color: #f1f5f9; }
+[data-theme="dark"] .lp-section-sub { color: #94a3b8; }
+[data-theme="dark"] .lp-section-tag { color: #818cf8; }
+
+/* Features */
+[data-theme="dark"] .lp-features { background: #0f172a; }
+[data-theme="dark"] .lp-feat-card { background: #1e293b; border-color: #334155; }
+[data-theme="dark"] .lp-feat-card--pro { border-color: rgba(99,102,241,0.4); }
+[data-theme="dark"] .lp-feat-card h5 { color: #f1f5f9; }
+[data-theme="dark"] .lp-feat-card p { color: #94a3b8; }
+
+/* How It Works */
+[data-theme="dark"] .lp-how { background: #1e293b; }
+[data-theme="dark"] .lp-how h5 { color: #f1f5f9; }
+[data-theme="dark"] .lp-how .text-muted { color: #64748b !important; }
+[data-theme="dark"] .lp-step-arrow { color: #334155; }
+
+/* Pricing section */
+[data-theme="dark"] .lp-pricing { background: #0f172a; }
+[data-theme="dark"] .lp-plan-card { background: #1e293b; border-color: #334155; }
+[data-theme="dark"] .lp-plan-card--pro { border-color: rgba(99,102,241,0.5); box-shadow: 0 8px 32px rgba(99,102,241,0.15); }
+[data-theme="dark"] .lp-plan-name { color: #818cf8; }
+[data-theme="dark"] .lp-plan-tagline { color: #64748b; }
+[data-theme="dark"] .lp-plan-price { color: #f1f5f9; }
+[data-theme="dark"] .lp-plan-price span { color: #f1f5f9; }
+[data-theme="dark"] .lp-price-period { color: #64748b !important; }
+[data-theme="dark"] .lp-plan-price-note { color: #475569; }
+[data-theme="dark"] .lp-plan-save-badge { background: rgba(99,102,241,0.15); color: #a5b4fc; border-color: rgba(99,102,241,0.3); }
+[data-theme="dark"] .lp-feat-group-label { color: #475569; border-top-color: #334155; }
+[data-theme="dark"] .lp-plan-table li { color: #cbd5e1; border-bottom-color: #1e293b; }
+[data-theme="dark"] .lp-val-check { color: #cbd5e1; }
+[data-theme="dark"] .lp-val-dash { color: #334155; }
+[data-theme="dark"] .lp-plan-btn-ghost { border-color: #475569; color: #94a3b8; }
+[data-theme="dark"] .lp-plan-btn-ghost:hover { border-color: #6366f1; color: #a5b4fc; }
+[data-theme="dark"] .lp-plan-note { color: #475569; }
+[data-theme="dark"] .lp-toggle-label { color: #94a3b8; }
+[data-theme="dark"] .lp-toggle-switch { background: #334155; }
+[data-theme="dark"] .lp-toggle-switch.lp-toggle--on { background: #6366f1; }
+
+/* Testimonials */
+[data-theme="dark"] .lp-testimonials { background: #1e293b; }
+[data-theme="dark"] .lp-testi-card { background: #0f172a; border-color: #334155; }
+[data-theme="dark"] .lp-testi-quote { color: #cbd5e1; }
+[data-theme="dark"] .lp-testi-name { color: #f1f5f9; }
+[data-theme="dark"] .lp-testi-role { color: #64748b; }
+
+/* FAQ */
+[data-theme="dark"] .lp-faq { background: #1e293b; }
+[data-theme="dark"] .lp-faq-item { background: #0f172a; border-color: #334155; }
+[data-theme="dark"] .lp-faq-q { color: #f1f5f9; }
+[data-theme="dark"] .lp-faq-a { color: #94a3b8; }
+
+/* CTA */
+[data-theme="dark"] .lp-cta { background: #0f172a; }
+[data-theme="dark"] .lp-cta-box { background: #1e293b; border: 1px solid #334155; }
+[data-theme="dark"] .lp-cta-title { color: #f1f5f9; }
+[data-theme="dark"] .lp-cta-sub { color: #94a3b8; }
+[data-theme="dark"] .lp-cta .lp-badge { background: rgba(99,102,241,0.15); color: #a5b4fc; border-color: rgba(99,102,241,0.3); }
 
 /* ── Insights — Skeleton loader ──────────────────────────────────────────── */
 @keyframes ins-shimmer {

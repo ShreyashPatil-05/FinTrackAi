@@ -19,9 +19,9 @@ from ..services.subscription_service import (
     get_active_subscriptions,
     get_total_monthly_cost,
     get_total_yearly_cost,
-    get_due_soon_pks,
-    get_due_today_pks,
-    get_upcoming_count,
+    get_subscriptions_due_soon,
+    get_subscriptions_due_today,
+    get_upcoming_subscription_count,
 )
 from ..services.plan_service import check_limit
 
@@ -59,9 +59,9 @@ def subscriptions(request: HttpRequest) -> HttpResponse:
     total_monthly = get_total_monthly_cost(request.user)
     total_yearly = get_total_yearly_cost(request.user)
     active_count = get_active_subscriptions(request.user).count()
-    upcoming = get_upcoming_count(request.user, days=7)
-    due_soon_pks = get_due_soon_pks(request.user, days=7)
-    due_today_pks = get_due_today_pks(request.user)
+    upcoming = get_upcoming_subscription_count(request.user, days=7)
+    due_soon_pks = get_subscriptions_due_soon(request.user, days=7)
+    due_today_pks = get_subscriptions_due_today(request.user)
 
     return render(request, 'dashboard/subscriptions.html', {
         'subs': subs,

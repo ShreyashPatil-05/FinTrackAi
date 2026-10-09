@@ -44,7 +44,7 @@ def settings_income(request: HttpRequest) -> HttpResponse:
     view_year = nav['view_year']
 
     source_q = request.GET.get('source', '')
-    qs = get_income_entries(request.user, view_month, view_year, source_q=source_q)
+    qs = get_income_entries(request.user, view_month, view_year, source_filter=source_q)
     summary = get_income_summary(request.user, view_month, view_year)
 
     # Default date = today if on current month, else 1st of selected month

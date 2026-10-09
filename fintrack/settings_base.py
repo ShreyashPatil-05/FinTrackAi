@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'accounts',
     'expenses',
     'dashboard',
+    'ai',
 
     # Rate limiting
     'axes',
